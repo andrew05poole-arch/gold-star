@@ -1,10 +1,10 @@
 # StepLeague — Design Concept
 
-**Status:** Draft v1
+**Status:** Draft v2
 **Scope:** Visual direction for the MVP flagship World, **DailyStep**.
-**Companion doc:** `docs/PRD.md`
+**Companion docs:** `docs/PRD.md` · live preview in `prototype/index.html` · code tokens in `app-mobile/lib/theme.ts`
 
-> ⚠️ **Image generation pending.** This doc was meant to include a Higgsfield-generated mood board and key-screen concept art. Every Higgsfield MCP tool call in this session (including read-only ones like `list_workspaces`) is currently failing with `MCP tool call requires approval`, which isn't resolving via retry. The written direction below is ready to generate from as soon as that's unblocked — see "Next Step" at the bottom.
+> ℹ️ **On imagery:** The original plan was a Higgsfield-generated mood board + concept art. Higgsfield is paused (MCP approval issue), and this environment's egress policy also blocks stock-photo CDNs (Unsplash, Pexels, Pixabay, etc.). So the visuals below are **on-brand vector (SVG) assets generated locally** using the exact palette — plus the interactive `prototype/` for screen-level look-and-feel. Photographic mood imagery / Higgsfield concept art remains a **deferred loop-back item** (see §7).
 
 ---
 
@@ -21,52 +21,112 @@
 
 ---
 
-## 2. Color & Type Direction
+## 2. Brand Mood Board
 
-**Palette (energetic, high-contrast, game-like):**
-- **Primary — Coral/Orange** (`#FF6B4A`-ish): CTAs, streak flame, primary actions. Warm, urgent-but-friendly.
-- **Secondary — Teal** (`#1FB6A8`-ish): progress bars, secondary UI, "you" in rival comparisons.
-- **Accent — Sunny Yellow** (`#FFD23F`-ish): celebration states, badges, streak milestones.
-- **Neutral base — soft off-white / charcoal**: keeps the bright accents from feeling chaotic; avoid pure black/white for a softer, app-like feel.
+![StepLeague brand mood board: logo lockup, color system, typography, and component previews](images/brand-moodboard.svg)
 
-**Type direction:** Rounded, friendly sans-serif (e.g., the general style family of Nunito / Poppins / SF Rounded) — large, bold numerals for step counts and streaks since those are the "scoreboard" of the app. Avoid anything condensed or technical-feeling.
+*Generated locally from the design tokens below — palette, type, mood keywords, and live component previews (daily-goal bar, you-vs-rival bars).*
+
+### App Icon Concept
+
+![StepLeague app icon concept: white flame/forward-step mark on a coral-to-yellow gradient](images/app-icon-concept.svg)
+
+*Coral→yellow energy gradient with a white flame/forward-step mark and a teal "step" dot — reads at small sizes and ties the icon to the in-app streak flame.*
 
 ---
 
-## 3. Mood Board (planned)
+## 3. Design System
 
-Concept art to generate once Higgsfield access is restored, intended to capture overall brand vibe rather than literal UI:
+This is the **single source of truth** for visual tokens; `app-mobile/lib/theme.ts` mirrors these values exactly, and `prototype/style.css` hardcodes the same hexes.
 
-1. **"Movement as game" hero image** — a person mid-stride rendered in a bright, slightly stylized/illustrated (not photoreal) style, motion lines, game-like energy, coral/teal/yellow palette.
-2. **Mascot/character concept** — a friendly, abstract "rival" character concept (the AI Rival needs a face/personality eventually) — playful, simple geometric character design, not a literal animal/human likeness.
-3. **Celebration moment** — visual representing a streak-saved or challenge-won moment: confetti-like burst, flame icon, badge — establishes the reward-state visual language.
+### 3.1 Color tokens
 
-## 4. Key Screen Concept Art (planned)
+| Token | Hex | Usage |
+|---|---|---|
+| `primary` | `#FF6B4A` | Coral/orange — primary CTAs, streak flame, daily-goal fill |
+| `primaryDark` | `#E85A3A` | Pressed/active state of primary |
+| `secondary` | `#1FB6A8` | Teal — progress, "You" in rival comparison, positive/ahead states |
+| `secondaryDark` | `#178F84` | Pressed/active state of secondary |
+| `accent` | `#FFD23F` | Sunny yellow — celebrations, badges, streak milestones |
+| `rivalAccent` | `#7C6FFF` | Soft indigo — the AI **Rival** in head-to-head bars (see note below) |
+| `background` | `#FBF8F5` | Soft off-white app background (never pure white) |
+| `surface` | `#FFFFFF` | Card / sheet backgrounds |
+| `textPrimary` | `#2E2A27` | Charcoal body/heading text (never pure black) |
+| `textSecondary` | `#766F6A` | Muted labels, captions |
+| `border` | `#EDE7E2` | Hairlines, empty progress tracks, card outlines |
+| `danger` | `#E8543A` | "Behind"/negative states, destructive actions |
 
-Each paired with the functional wireframe description from `docs/PRD.md` Section 9:
+> **Rival color note:** DESIGN.md v1 only said "You in teal vs. a contrasting tone." We've assigned that contrasting tone a soft indigo (`#7C6FFF`) so the opponent is never confused with the primary CTA (coral), the user's own teal, or the yellow celebration color. This is a deliberate-but-swappable choice — change it in one place (`theme.ts` / this table) if a different rival color tests better.
 
-1. **DailyStep Home/Dashboard vibe** — large step counter, flame/streak indicator, bright background, single primary CTA. (Maps to PRD §9.2)
-2. **Friends Leaderboard / AI Rival vibe** — ranked list energy with avatars and rank-change arrows, a head-to-head "you vs. rival" bar visual. (Maps to PRD §9.3–9.4)
-3. **Streak-celebration vibe** — full-screen celebratory moment when a streak milestone or challenge is completed. (Maps to PRD §9.5)
+### 3.2 Spacing scale (px)
+
+| Token | xs | sm | md | lg | xl | xxl |
+|---|---|---|---|---|---|---|
+| Value | 4 | 8 | 16 | 24 | 32 | 48 |
+
+### 3.3 Corner radii (px)
+
+| Token | sm | md | lg | full |
+|---|---|---|---|---|
+| Value | 8 | 16 | 24 | 999 (pills/avatars) |
+
+Rounded corners everywhere — the playful, friendly feel depends on it. Default cards use `lg` (24), buttons and chips use `full`.
+
+### 3.4 Typography
+
+- **Family:** Nunito (loaded via `@expo-google-fonts/nunito`); Poppins / SF Rounded are acceptable equivalents. Avoid condensed or technical-feeling faces.
+- **Weights in use:** 400 (regular), 600 (semibold body), 700 (bold), 800 (extra-bold display).
+
+| Token | Size (px) | Use |
+|---|---|---|
+| `display` | 48 | The step counter / scoreboard numerals — the hero number |
+| `xl` | 28 | Screen titles, big stats |
+| `lg` | 20 | Section headings, challenge titles |
+| `md` | 16 | Body text |
+| `sm` | 14 | Secondary labels |
+| `xs` | 12 | Captions, pill text, rank deltas |
+
+---
+
+## 4. Key Screen Concept Art
+
+Interactive, theme-accurate mockups of all five screens live in **`prototype/index.html`** — open it in any browser to see the look-and-feel (phone frames, real palette, mock data, clickable navigation). It maps 1:1 to the wireframes in `docs/PRD.md` §9 and to the Expo screens in `app-mobile/app/`.
+
+| Screen | PRD ref | Prototype frame |
+|---|---|---|
+| Onboarding & permissions | §9.1 | `#onboarding` |
+| Home / Daily Dashboard | §9.2 | `#home` |
+| Friends Leaderboard | §9.3 | `#leaderboard` |
+| AI Rival Comparison | §9.4 | `#rival` |
+| Streak & Challenge | §9.5 | `#streaks` |
 
 ---
 
 ## 5. Key Screens — Written Descriptions
 
-(Duplicated/summarized from PRD §9 for design reference; PRD is the source of truth for functional requirements.)
+(Summarized from PRD §9 for design reference; the PRD is the source of truth for functional requirements.)
 
 | Screen | Visual priority | Key visual elements |
 |---|---|---|
-| Onboarding | Vision-first, low friction | Full-bleed hero illustration, single permission CTA |
-| Home/Dashboard | Step count + streak dominate | Large numerals, flame icon, today's rival-pace sliver |
-| Friends Leaderboard | Rank clarity | Avatar list, rank-change arrows, reset countdown |
-| AI Rival Comparison | Head-to-head bars | "You" in teal vs. "Rival" in a contrasting tone, gap callout |
-| Streak/Challenge | Progress + history | Streak calendar strip, challenge progress bar |
+| Onboarding | Vision-first, low friction | Full-bleed hero panel, single permission CTA, skippable invite step |
+| Home/Dashboard | Step count + streak dominate | `display` numerals, flame icon, daily-goal bar, today's rival-pace sliver |
+| Friends Leaderboard | Rank clarity | Avatar list, rank-change arrows, weekly reset countdown pill, invite CTA |
+| AI Rival Comparison | Head-to-head bars | "You" (teal) vs. "Rival" (indigo) bars, gap callout line |
+| Streak/Challenge | Progress + history | Streak calendar strip, active challenge progress, joinable challenge cards |
 
 ---
 
-## 6. Next Step
+## 6. Visual Do / Don't
 
-1. Retry the Higgsfield connection (re-run `models_explore`/`generate_image`) — likely needs a fresh approval/auth step on the Higgsfield side rather than a code fix.
-2. Generate the 6 concept images described in Sections 3–4 above and save them to `design/images/`, then embed them in this doc with captions.
-3. Per the user's stated plan: once concept art exists, feed it into a UI design/prototyping tool to produce actual pixel-accurate mockups — that step is intentionally out of scope here.
+- **Do** keep one clear primary action (coral) per screen; **don't** stack multiple coral CTAs competing for attention.
+- **Do** use yellow only for reward/celebration moments so it stays meaningful; **don't** use it for routine UI.
+- **Do** frame competition positively ("You're 412 steps ahead"); **don't** use red/shame framing for being behind.
+- **Do** keep big numbers big — the step count is the scoreboard and the emotional core of the screen.
+
+---
+
+## 7. Deferred / Loop-Back Items
+
+1. **Photographic mood imagery** — energetic movement / city-walk / celebration photos to sit alongside the vector board, once a reachable image source or Higgsfield is available.
+2. **Higgsfield concept art** — the original mood board + character/mascot concepts (the AI Rival will eventually want a face/personality).
+3. **Hi-fi mockups** — feed these assets + the prototype into a dedicated UI design tool for pixel-accurate, production-ready screens.
