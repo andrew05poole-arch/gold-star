@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>StepLeague — Prototype</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="page-head">
+    <h1>Step<span class="lg">League</span></h1>
+    <p>A daily game you play with your feet.</p>
+    <p class="sub">Static prototype · DailyStep MVP · 5 screens · mirrors docs/PRD.md §9</p>
+  </div>
+
+  <div class="gallery">
+
+    <!-- 1. ONBOARDING -->
+    <section class="phone" id="onboarding">
+      <div class="screen-name">Onboarding</div>
+      <div class="viewport" style="justify-content:space-between;">
+        <div style="text-align:center; margin-top:14px;">
+          <div class="av lg" style="background:var(--primary); width:96px; height:96px; font-size:42px; margin:0 auto 12px;">🔥</div>
+          <div style="font-size:30px; font-weight:800;">StepLeague</div>
+          <div style="color:var(--primary); font-weight:800; font-size:14px;">A daily game you play with your feet.</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <p class="center" style="font-weight:700; font-size:15px;">Turn your steps into a daily game — streaks, leaderboards, and an AI rival.</p>
+          <div class="row gap-md"><div class="av" style="background:#FFEDE7; color:var(--primary);">👣</div><span style="font-weight:800;">Track steps automatically</span></div>
+          <div class="row gap-md"><div class="av" style="background:#FFEDE7; color:var(--primary);">🔥</div><span style="font-weight:800;">Keep your streak alive</span></div>
+          <div class="row gap-md"><div class="av" style="background:#FFEDE7; color:var(--primary);">🏆</div><span style="font-weight:800;">Beat friends &amp; your rival</span></div>
+        </div>
+        <div>
+          <a class="btn primary" href="#home">Connect my steps</a>
+          <a class="btn ghost" href="#home">I'll invite friends later</a>
+          <p class="footnote" style="margin-top:8px;">We only read step counts. You're always in control.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. HOME -->
+    <section class="phone" id="home">
+      <div class="screen-name">Home · Daily Dashboard</div>
+      <div class="viewport">
+        <div class="row between">
+          <span class="h-screen">Today</span>
+          <span class="pill flame">🔥 6 day streak</span>
+        </div>
+        <div class="card" style="align-items:center; display:flex; flex-direction:column; gap:12px;">
+          <div>
+            <div class="stepnum">8,420</div>
+            <div class="stepunit">steps today</div>
+          </div>
+          <div class="row gap-md" style="width:100%;">
+            <div class="track"><div class="fill" style="width:84%; background:var(--primary);"></div></div>
+            <span style="font-weight:800; color:var(--primary); font-size:14px;">84%</span>
+          </div>
+          <div class="muted" style="font-weight:700; font-size:13px;">1,580 steps to your 10,000 goal</div>
+        </div>
+        <div class="card">
+          <div class="label" style="margin-bottom:8px;">Today vs Rival</div>
+          <div class="row gap-sm">
+            <span style="color:var(--secondary); font-size:18px;">📈</span>
+            <span style="font-weight:700; font-size:14px;">You're <b style="color:var(--secondary);">410</b> steps ahead of Echo</span>
+          </div>
+        </div>
+      </div>
+      <nav class="tabbar">
+        <a class="tab active" href="#home"><span class="ic">🏠</span>Home</a>
+        <a class="tab" href="#leaderboard"><span class="ic">🏆</span>League</a>
+        <a class="tab" href="#rival"><span class="ic">⚡</span>Rival</a>
+        <a class="tab" href="#streaks"><span class="ic">🔥</span>Streaks</a>
+      </nav>
+    </section>
+
+    <!-- 3. LEADERBOARD -->
+    <section class="phone" id="leaderboard">
+      <div class="screen-name">Friends Leaderboard</div>
+      <div class="viewport">
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <span class="h-screen">This Week</span>
+          <span class="pill reset">⏱ Resets in 2d 4h</span>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="lrow"><span class="rank">1</span><div class="av" style="background:#1FB6A8;">MR</div><div style="flex:1;"><div class="nm">Maya R.</div><div class="st">63,180 steps</div></div><span class="delta flat">—</span></div>
+          <div class="lrow me"><span class="rank">2</span><div class="av" style="background:#FF6B4A;">YO</div><div style="flex:1;"><div class="nm">You</div><div class="st">58,420 steps</div></div><span class="delta up">▲2</span></div>
+          <div class="lrow"><span class="rank">3</span><div class="av" style="background:#7C6FFF;">DP</div><div style="flex:1;"><div class="nm">Dev P.</div><div class="st">54,900 steps</div></div><span class="delta down">▼1</span></div>
+          <div class="lrow"><span class="rank">4</span><div class="av" style="background:#FFD23F;">SK</div><div style="flex:1;"><div class="nm">Sam K.</div><div class="st">49,310 steps</div></div><span class="delta down">▼1</span></div>
+          <div class="lrow"><span class="rank">5</span><div class="av" style="background:#E8543A;">AL</div><div style="flex:1;"><div class="nm">Ana L.</div><div class="st">41,870 steps</div></div><span class="delta flat">—</span></div>
+          <div class="lrow"><span class="rank">6</span><div class="av" style="background:#178F84;">TM</div><div style="flex:1;"><div class="nm">Theo M.</div><div class="st">33,540 steps</div></div><span class="delta up">▲2</span></div>
+        </div>
+        <div class="invite">
+          <h3>More friends = more fun</h3>
+          <p>Invite friends to climb the league together.</p>
+          <a class="btn primary" href="#leaderboard">Invite friends</a>
+        </div>
+      </div>
+      <nav class="tabbar">
+        <a class="tab" href="#home"><span class="ic">🏠</span>Home</a>
+        <a class="tab active" href="#leaderboard"><span class="ic">🏆</span>League</a>
+        <a class="tab" href="#rival"><span class="ic">⚡</span>Rival</a>
+        <a class="tab" href="#streaks"><span class="ic">🔥</span>Streaks</a>
+      </nav>
+    </section>
+
+    <!-- 4. RIVAL -->
+    <section class="phone" id="rival">
+      <div class="screen-name">AI Rival Comparison</div>
+      <div class="viewport">
+        <span class="h-screen">Your Rival</span>
+        <div class="card row gap-md">
+          <div class="av lg" style="background:var(--rival);">EC</div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <div style="font-size:22px; font-weight:800;">Echo</div>
+            <span class="pill band">even pace</span>
+          </div>
+        </div>
+        <div class="card" style="display:flex; flex-direction:column; gap:18px;">
+          <div>
+            <div class="row between" style="align-items:flex-end;">
+              <span style="color:var(--secondary); font-weight:800;">You</span>
+              <span style="font-weight:800; font-size:18px;">8,420</span>
+            </div>
+            <div class="track" style="height:22px; margin-top:4px;"><div class="fill" style="width:100%; background:var(--secondary);"></div></div>
+          </div>
+          <div>
+            <div class="row between" style="align-items:flex-end;">
+              <span style="color:var(--rival); font-weight:800;">Echo</span>
+              <span style="font-weight:800; font-size:18px;">8,010</span>
+            </div>
+            <div class="track" style="height:22px; margin-top:4px;"><div class="fill" style="width:95%; background:var(--rival);"></div></div>
+          </div>
+        </div>
+        <div class="banner ahead">You're 410 steps ahead — keep it up!</div>
+        <p class="footnote">Echo's pace is calibrated to your own recent activity, so the race stays fair. (PRD §13.3)</p>
+      </div>
+      <nav class="tabbar">
+        <a class="tab" href="#home"><span class="ic">🏠</span>Home</a>
+        <a class="tab" href="#leaderboard"><span class="ic">🏆</span>League</a>
+        <a class="tab active" href="#rival"><span class="ic">⚡</span>Rival</a>
+        <a class="tab" href="#streaks"><span class="ic">🔥</span>Streaks</a>
+      </nav>
+    </section>
+
+    <!-- 5. STREAKS -->
+    <section class="phone" id="streaks">
+      <div class="screen-name">Streak &amp; Challenge</div>
+      <div class="viewport">
+        <div class="row between">
+          <span class="h-screen">Streaks</span>
+          <span class="pill flame">🔥 6 day streak</span>
+        </div>
+        <div class="card" style="display:flex; flex-direction:column; gap:12px;">
+          <div class="label">This Week</div>
+          <div class="cal">
+            <div class="d"><div class="cell on">🔥</div><span class="dl">M</span></div>
+            <div class="d"><div class="cell on">🔥</div><span class="dl">T</span></div>
+            <div class="d"><div class="cell on">🔥</div><span class="dl">W</span></div>
+            <div class="d"><div class="cell off">·</div><span class="dl">T</span></div>
+            <div class="d"><div class="cell on">🔥</div><span class="dl">F</span></div>
+            <div class="d"><div class="cell on">🔥</div><span class="dl">S</span></div>
+            <div class="d"><div class="cell on today">🔥</div><span class="dl">S</span></div>
+          </div>
+        </div>
+        <div style="font-size:18px; font-weight:800;">Active challenge</div>
+        <div class="card">
+          <div class="row between">
+            <div><div style="font-weight:800; font-size:16px;">10k for 3 days</div><div class="st muted" style="font-weight:700; font-size:12px;">Day 2 of 3 · keep it up</div></div>
+            <span style="font-size:22px;">🏆</span>
+          </div>
+          <div class="row gap-md" style="margin-top:12px;">
+            <div class="track"><div class="fill" style="width:66%; background:var(--primary);"></div></div>
+            <span style="font-weight:800; color:var(--primary);">66%</span>
+          </div>
+        </div>
+        <div style="font-size:18px; font-weight:800;">Join a challenge</div>
+        <div class="card">
+          <div class="row between">
+            <div><div style="font-weight:800; font-size:16px;">Weekend Warrior</div><div class="muted" style="font-weight:700; font-size:12px;">25k steps Sat–Sun</div></div>
+            <span class="muted" style="font-weight:800; font-size:13px;">👥 14</span>
+          </div>
+          <a class="btn secondary" href="#streaks" style="margin-top:12px; padding:11px;">Join challenge</a>
+        </div>
+        <div class="card">
+          <div class="row between">
+            <div><div style="font-weight:800; font-size:16px;">Early Bird</div><div class="muted" style="font-weight:700; font-size:12px;">2k steps before 9am, 5 days</div></div>
+            <span class="muted" style="font-weight:800; font-size:13px;">👥 8</span>
+          </div>
+          <a class="btn secondary" href="#streaks" style="margin-top:12px; padding:11px;">Join challenge</a>
+        </div>
+      </div>
+      <nav class="tabbar">
+        <a class="tab" href="#home"><span class="ic">🏠</span>Home</a>
+        <a class="tab" href="#leaderboard"><span class="ic">🏆</span>League</a>
+        <a class="tab" href="#rival"><span class="ic">⚡</span>Rival</a>
+        <a class="tab active" href="#streaks"><span class="ic">🔥</span>Streaks</a>
+      </nav>
+    </section>
+
+  </div>
+
+  <p class="legend">Tip: the bottom tab bar and buttons are clickable — they jump between screens. All data is mock data.</p>
+</body>
+</html>
