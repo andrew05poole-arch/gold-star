@@ -1,14 +1,39 @@
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { colors, fontFamily, radii, spacing } from '@/lib/theme';
-import { rival } from '@/lib/mockData';
+import { useStepData } from '@/lib/useStepData';
+import { getRivalStatus } from '@/lib/api/rival';
+import { rival as fallbackRival } from '@/lib/mockData';
 import { formatSteps } from '@/lib/format';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { RivalBar } from '@/components/RivalBar';
 import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/Card';
 import { Text } from '@/components/Text';
+import type { RivalStatus } from '@/lib/types';
 
 export default function Rival() {
+  const { data } = useStepData();
+  const [rival, setRival] = useState<RivalStatus>(fallbackRival);
+
+  useEffect(() => {
+    if (!data) return;
+    const todayNormalized = data.weeklyHistory[data.weeklyHistory.length - 1]?.normalizedSteps ?? data.todaySteps;
+    getRivalStatus(todayNormalized)
+      .then(setRival)
+      .catch(() => {});
+  }, [data]);
+
+  if (!data) {
+    return (
+      <ScreenContainer scroll={false}>
+        <View style={styles.loading}>
+          <ActivityIndicator color={colors.primary} size="large" />
+        </View>
+      </ScreenContainer>
+    );
+  }
+
   const gap = rival.yourSteps - rival.rivalSteps;
   const ahead = gap >= 0;
   const max = Math.max(rival.yourSteps, rival.rivalSteps, 1);
@@ -48,6 +73,7 @@ export default function Rival() {
 }
 
 const styles = StyleSheet.create({
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 300 },
   title: { fontFamily: fontFamily.extraBold, fontSize: 28, color: colors.textPrimary, marginTop: spacing.sm },
   rivalHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   rivalInfo: { gap: spacing.xs },

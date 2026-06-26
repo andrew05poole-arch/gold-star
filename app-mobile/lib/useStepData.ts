@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { currentUser } from './mockData';
 import { normalizeSteps } from './normalize';
+import { upsertTodayStepRecord } from './api/stepRecords';
 import type { PermissionStatus, StepDay, StepSnapshot } from './types';
 
 export interface StepDataProvider {
@@ -72,6 +73,10 @@ export function useStepData() {
       .getSnapshot()
       .then((snapshot) => {
         if (mounted.current) setData(snapshot);
+        // Best-effort write-through so streaks/leaderboard/rival operate on real
+        // persisted rows even while the sensor layer itself is still mocked. No-ops
+        // (silently) if the user has no session/profile yet.
+        upsertTodayStepRecord(snapshot.todaySteps, snapshot.source).catch(() => {});
       })
       .finally(() => {
         if (mounted.current) setIsLoading(false);
