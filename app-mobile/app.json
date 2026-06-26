@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "StepLeague",
+    "slug": "stepleague",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "stepleague",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#FF6B4A"
+    },
+    "ios": { "supportsTablet": true },
+    "android": {
+      "adaptiveIcon": { "backgroundColor": "#FF6B4A" }
+    },
+    "web": { "bundler": "metro", "output": "static" },
+    "plugins": ["expo-router", "expo-font"],
+    "experiments": { "typedRoutes": true }
+  }
+}

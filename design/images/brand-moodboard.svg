@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="780" viewBox="0 0 1200 780" font-family="'Nunito','Poppins','Segoe UI',sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFF6F2"/>
+      <stop offset="1" stop-color="#FBF8F5"/>
+    </linearGradient>
+    <linearGradient id="energy" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FF6B4A"/>
+      <stop offset="0.55" stop-color="#FF8A3D"/>
+      <stop offset="1" stop-color="#FFD23F"/>
+    </linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1FB6A8"/>
+      <stop offset="1" stop-color="#17C0A0"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="14" flood-color="#2E2A27" flood-opacity="0.10"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="780" fill="url(#bg)"/>
+
+  <!-- Header -->
+  <text x="64" y="84" font-size="40" font-weight="800" fill="#2E2A27">StepLeague</text>
+  <text x="64" y="118" font-size="20" font-weight="700" fill="#FF6B4A">A daily game you play with your feet.</text>
+  <text x="64" y="150" font-size="15" font-weight="600" fill="#766F6A">Brand Mood Board · Energetic &amp; Playful · DailyStep MVP</text>
+
+  <!-- Logo lockup tile -->
+  <g filter="url(#soft)">
+    <rect x="820" y="48" width="316" height="120" rx="24" fill="#FFFFFF"/>
+  </g>
+  <circle cx="888" cy="108" r="38" fill="url(#energy)"/>
+  <!-- stylized flame/step mark -->
+  <path d="M888 84 c14 14 18 26 8 38 c4 -2 7 -6 8 -11 c5 9 4 20 -8 27 c-16 5 -30 -6 -28 -23 c1 -10 9 -16 12 -24 c2 6 5 9 8 11 c-4 -8 -4 -13 0 -18 z" fill="#FFFFFF"/>
+  <text x="942" y="100" font-size="26" font-weight="800" fill="#2E2A27">Step</text>
+  <text x="942" y="130" font-size="26" font-weight="800" fill="#FF6B4A">League</text>
+
+  <!-- Color palette -->
+  <text x="64" y="210" font-size="18" font-weight="800" fill="#2E2A27">COLOR SYSTEM</text>
+  <g filter="url(#soft)">
+    <rect x="64" y="226" width="150" height="150" rx="20" fill="#FF6B4A"/>
+    <rect x="228" y="226" width="150" height="150" rx="20" fill="#1FB6A8"/>
+    <rect x="392" y="226" width="150" height="150" rx="20" fill="#FFD23F"/>
+    <rect x="556" y="226" width="150" height="150" rx="20" fill="#7C6FFF"/>
+    <rect x="720" y="226" width="150" height="150" rx="20" fill="#FBF8F5" stroke="#EDE7E2" stroke-width="2"/>
+    <rect x="884" y="226" width="150" height="150" rx="20" fill="#2E2A27"/>
+  </g>
+  <g font-size="13" font-weight="700" fill="#FFFFFF">
+    <text x="80" y="352">Primary</text><text x="80" y="370" font-size="11" opacity="0.9">#FF6B4A</text>
+    <text x="244" y="352">Secondary</text><text x="244" y="370" font-size="11" opacity="0.9">#1FB6A8</text>
+    <text x="408" y="352" fill="#2E2A27">Accent</text><text x="408" y="370" font-size="11" fill="#2E2A27">#FFD23F</text>
+    <text x="572" y="352">Rival</text><text x="572" y="370" font-size="11" opacity="0.9">#7C6FFF</text>
+    <text x="736" y="352" fill="#766F6A">Background</text><text x="736" y="370" font-size="11" fill="#766F6A">#FBF8F5</text>
+    <text x="900" y="352">Charcoal</text><text x="900" y="370" font-size="11" opacity="0.9">#2E2A27</text>
+  </g>
+
+  <!-- Typography -->
+  <text x="64" y="430" font-size="18" font-weight="800" fill="#2E2A27">TYPOGRAPHY · Nunito / rounded sans</text>
+  <g filter="url(#soft)">
+    <rect x="64" y="446" width="500" height="270" rx="24" fill="#FFFFFF"/>
+  </g>
+  <text x="92" y="520" font-size="68" font-weight="800" fill="#2E2A27">12,408</text>
+  <text x="92" y="546" font-size="14" font-weight="700" fill="#766F6A">DISPLAY · step counter / scoreboard</text>
+  <text x="92" y="600" font-size="30" font-weight="800" fill="#FF6B4A">Keep your streak alive 🔥</text>
+  <text x="92" y="622" font-size="13" font-weight="700" fill="#766F6A">HEADING · bold, encouraging</text>
+  <text x="92" y="668" font-size="18" font-weight="600" fill="#2E2A27">You're 412 steps ahead of your rival.</text>
+  <text x="92" y="690" font-size="13" font-weight="700" fill="#766F6A">BODY · friendly, never punishing</text>
+
+  <!-- Mood keywords + sample chips -->
+  <text x="600" y="430" font-size="18" font-weight="800" fill="#2E2A27">FEEL</text>
+  <g font-size="16" font-weight="800">
+    <rect x="600" y="446" width="150" height="46" rx="23" fill="url(#energy)"/><text x="620" y="475" fill="#FFFFFF">Energetic</text>
+    <rect x="762" y="446" width="140" height="46" rx="23" fill="url(#teal)"/><text x="782" y="475" fill="#FFFFFF">Playful</text>
+    <rect x="914" y="446" width="222" height="46" rx="23" fill="#FFD23F"/><text x="934" y="475" fill="#2E2A27">Encouraging</text>
+    <rect x="600" y="504" width="200" height="46" rx="23" fill="#FFFFFF" stroke="#EDE7E2" stroke-width="2"/><text x="620" y="533" fill="#2E2A27">Lightly competitive</text>
+    <rect x="812" y="504" width="160" height="46" rx="23" fill="#FFFFFF" stroke="#EDE7E2" stroke-width="2"/><text x="832" y="533" fill="#2E2A27">In-motion</text>
+  </g>
+
+  <!-- Component preview: progress + flame + rival bars -->
+  <g filter="url(#soft)">
+    <rect x="600" y="572" width="536" height="144" rx="24" fill="#FFFFFF"/>
+  </g>
+  <text x="624" y="604" font-size="13" font-weight="800" fill="#766F6A">DAILY GOAL</text>
+  <rect x="624" y="614" width="380" height="18" rx="9" fill="#EDE7E2"/>
+  <rect x="624" y="614" width="270" height="18" rx="9" fill="url(#energy)"/>
+  <text x="1016" y="628" font-size="14" font-weight="800" fill="#FF6B4A">71%</text>
+
+  <text x="624" y="664" font-size="13" font-weight="800" fill="#766F6A">YOU vs RIVAL</text>
+  <rect x="624" y="674" width="300" height="14" rx="7" fill="#1FB6A8"/>
+  <rect x="624" y="694" width="250" height="14" rx="7" fill="#7C6FFF"/>
+  <text x="940" y="686" font-size="12" font-weight="800" fill="#1FB6A8">You 9.4k</text>
+  <text x="940" y="706" font-size="12" font-weight="800" fill="#7C6FFF">Rival 9.0k</text>
+</svg>
