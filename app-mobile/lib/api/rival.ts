@@ -1,6 +1,8 @@
 import { supabase } from '../supabase';
 import type { RivalStatus } from '../types';
 
+type DifficultyBand = RivalStatus['difficultyBand'];
+
 /** Approximates PRD §13.3's "smooth hourly schedule" with a linear elapsed-day fraction. */
 function dayElapsedFraction(): number {
   const now = new Date();
@@ -25,4 +27,20 @@ export async function getRivalStatus(todayNormalizedSteps: number): Promise<Riva
     yourSteps: todayNormalizedSteps,
     rivalSteps: Math.round((target ?? 6000) * dayElapsedFraction()),
   };
+}
+
+/**
+ * Updates the difficulty band on the signed-in user's `rival_profiles` row
+ * (created automatically at onboarding — see 0003_rival_profile_onboarding.sql).
+ */
+export async function updateDifficultyBand(band: DifficultyBand): Promise<void> {
+  const { data: auth, error: authError } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  if (!auth.user) throw new Error('Not signed in');
+
+  const { error } = await supabase
+    .from('rival_profiles')
+    .update({ difficulty_band: band })
+    .eq('user_id', auth.user.id);
+  if (error) throw error;
 }

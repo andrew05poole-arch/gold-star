@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { colors, fontFamily, radii, spacing } from '@/lib/theme';
 import { useStepData } from '@/lib/useStepData';
-import { getRivalStatus } from '@/lib/api/rival';
+import { getRivalStatus, updateDifficultyBand } from '@/lib/api/rival';
 import { rival as fallbackRival } from '@/lib/mockData';
 import { formatSteps } from '@/lib/format';
 import { ScreenContainer } from '@/components/ScreenContainer';
@@ -12,9 +12,12 @@ import { Card } from '@/components/Card';
 import { Text } from '@/components/Text';
 import type { RivalStatus } from '@/lib/types';
 
+const DIFFICULTY_BANDS: RivalStatus['difficultyBand'][] = ['chill', 'even', 'pushy'];
+
 export default function Rival() {
   const { data } = useStepData();
   const [rival, setRival] = useState<RivalStatus>(fallbackRival);
+  const [savingBand, setSavingBand] = useState(false);
 
   useEffect(() => {
     if (!data) return;
@@ -23,6 +26,20 @@ export default function Rival() {
       .then(setRival)
       .catch(() => {});
   }, [data]);
+
+  async function handleChangeBand(band: RivalStatus['difficultyBand']) {
+    if (band === rival.difficultyBand || savingBand) return;
+    const previous = rival.difficultyBand;
+    setRival((r) => ({ ...r, difficultyBand: band }));
+    setSavingBand(true);
+    try {
+      await updateDifficultyBand(band);
+    } catch {
+      setRival((r) => ({ ...r, difficultyBand: previous }));
+    } finally {
+      setSavingBand(false);
+    }
+  }
 
   if (!data) {
     return (
@@ -65,6 +82,25 @@ export default function Rival() {
         </Text>
       </View>
 
+      <Card style={styles.bandCard}>
+        <Text style={styles.bandCardTitle}>Rival difficulty</Text>
+        <View style={styles.bandSelector}>
+          {DIFFICULTY_BANDS.map((band) => {
+            const active = band === rival.difficultyBand;
+            return (
+              <TouchableOpacity
+                key={band}
+                style={[styles.bandOption, active && styles.bandOptionActive]}
+                onPress={() => handleChangeBand(band)}
+                disabled={savingBand}
+              >
+                <Text style={[styles.bandOptionText, active && styles.bandOptionTextActive]}>{band}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </Card>
+
       <Text style={styles.footnote}>
         Your rival's pace is calibrated to your own recent activity, so the race stays fair. See PRD §13.3.
       </Text>
@@ -83,5 +119,18 @@ const styles = StyleSheet.create({
   bars: { gap: spacing.lg },
   statusBanner: { borderRadius: radii.md, padding: spacing.md },
   statusText: { fontFamily: fontFamily.extraBold, fontSize: 15, textAlign: 'center' },
+  bandCard: { gap: spacing.sm },
+  bandCardTitle: { fontFamily: fontFamily.bold, fontSize: 14, color: colors.textPrimary },
+  bandSelector: { flexDirection: 'row', gap: spacing.xs },
+  bandOption: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    backgroundColor: '#EFEDFF',
+  },
+  bandOptionActive: { backgroundColor: colors.rivalAccent },
+  bandOptionText: { fontFamily: fontFamily.bold, fontSize: 13, color: colors.rivalAccent, textTransform: 'capitalize' },
+  bandOptionTextActive: { color: '#FFFFFF' },
   footnote: { fontFamily: fontFamily.semibold, fontSize: 12, color: colors.textSecondary, textAlign: 'center' },
 });
