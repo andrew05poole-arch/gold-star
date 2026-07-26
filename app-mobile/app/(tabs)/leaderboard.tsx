@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Share, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Share, StyleSheet, TextInput, View } from 'react-native';
 import { colors, fontFamily, radii, spacing } from '@/lib/theme';
 import { nextWeeklyResetMs } from '@/lib/mockData';
 import {
@@ -8,6 +8,7 @@ import {
   getPendingFriendRequests,
   acceptFriendRequest,
   declineFriendRequest,
+  removeFriend,
 } from '@/lib/api/leaderboard';
 import { getMyProfile } from '@/lib/api/profile';
 import { useAuth } from '@/lib/useAuth';
@@ -85,6 +86,24 @@ export default function Leaderboard() {
     }
   }
 
+  function handleRemoveFriend(friend: Friend) {
+    Alert.alert('Remove friend?', `${friend.displayName} will be removed from your leaderboard.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await removeFriend(friend.id);
+            refresh();
+          } catch {
+            Alert.alert('Could not remove friend', 'Please try again.');
+          }
+        },
+      },
+    ]);
+  }
+
   return (
     <ScreenContainer>
       <View style={styles.header}>
@@ -123,7 +142,12 @@ export default function Leaderboard() {
 
       <View style={styles.list}>
         {leaderboard.map((friend) => (
-          <LeaderboardRow key={friend.id} friend={friend} isCurrentUser={friend.id === session?.user.id} />
+          <LeaderboardRow
+            key={friend.id}
+            friend={friend}
+            isCurrentUser={friend.id === session?.user.id}
+            onLongPress={() => handleRemoveFriend(friend)}
+          />
         ))}
       </View>
 
