@@ -7,7 +7,7 @@ algorithms documented in `../docs/PRD.md` §13.
 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. In the SQL Editor, run every file in `migrations/` in numeric order
-   (`0001_init.sql` through `0008_activity_events.sql` as of this writing —
+   (`0001_init.sql` through `0010_geo_leaderboards.sql` as of this writing —
    run `ls migrations/` to confirm you have the latest) — creates tables,
    triggers, RPCs, RLS policies. Then optionally run `seed.sql` (adds two
    joinable challenge presets matching the prototype).
@@ -116,6 +116,24 @@ and auto-logging only; reactions/comments/UI are separate follow-up issues:
     `friend_added` event for a row's `user_id` whenever that row becomes
     `accepted` (covers both the flipped original row and the mirrored
     reverse row `respond_to_friend_request`, 0004, writes on acceptance).
+
+Geo leaderboards (issue #31, `0010_geo_leaderboards.sql`) — public boards
+alongside the friends-only `get_leaderboard`, same ranking pattern (this
+ISO week's `normalized_score`, `previous_rank` from last week over the same
+scope), each capped at `limit 100` since the candidate set isn't naturally
+small like a friend list:
+
+- `get_city_leaderboard(p_city)` — all users whose `profiles.city` matches
+  case-insensitively.
+- `get_country_leaderboard(p_country)` — same, scoped to `profiles.country`.
+- `get_global_leaderboard()` — same, no scope filter (all users).
+
+All three are `security definer` and viewable by any authenticated user
+regardless of friendship — a public leaderboard, not a friend-scoped one —
+but expose nothing beyond what `get_leaderboard` already surfaces across
+users (`display_name`, `avatar_color`, `normalized_score`); city/country
+themselves are read from `profiles`, already selectable by any
+authenticated user (0001_init.sql).
 
 ## Testing / verifying migrations
 
