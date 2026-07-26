@@ -7,7 +7,7 @@ algorithms documented in `../docs/PRD.md` §13.
 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. In the SQL Editor, run every file in `migrations/` in numeric order
-   (`0001_init.sql` through `0010_geo_leaderboards.sql` as of this writing —
+   (`0001_init.sql` through `0011_activity_reactions.sql` as of this writing —
    run `ls migrations/` to confirm you have the latest) — creates tables,
    triggers, RPCs, RLS policies. Then optionally run `seed.sql` (adds two
    joinable challenge presets matching the prototype).
@@ -134,6 +134,28 @@ but expose nothing beyond what `get_leaderboard` already surfaces across
 users (`display_name`, `avatar_color`, `normalized_score`); city/country
 themselves are read from `profiles`, already selectable by any
 authenticated user (0001_init.sql).
+
+Activity reactions / likes (issue #34, `0011_activity_reactions.sql`):
+
+- `activity_reactions` — one row per `(event_id, user_id)` (primary key,
+  so at most one "like" per user per event; no reaction-type enum). RLS
+  only lets a user select/insert/delete their own reaction rows directly —
+  same trade-off as `activity_events` (0008): no broad "friends can see
+  reactions on events they can see" policy, since that would duplicate the
+  friend-lookup logic `get_friend_activity_feed` already encapsulates.
+- `toggle_activity_reaction(p_event_id)` — security-definer RPC that
+  re-derives "can the caller see this event" using the exact same
+  caller-or-accepted-friend rule as `get_friend_activity_feed`, then
+  inserts the caller's reaction if absent or deletes it if present.
+  Returns the resulting `(reacted, reaction_count)` for that event. Raises
+  if the event doesn't exist or isn't visible to the caller.
+- `get_activity_reaction_counts(p_event_ids)` — security-definer RPC
+  returning `(event_id, reaction_count, reacted_by_me)` for a batch of
+  event ids, so the Feed UI (issue #36) can render counts for a page of
+  events in one call instead of one query per row. Does not re-check event
+  visibility per id (only meaningful for ids the caller already got from
+  `get_friend_activity_feed`); events with zero reactions are simply
+  omitted from the result.
 
 ## Testing / verifying migrations
 
