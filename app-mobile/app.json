@@ -12,10 +12,22 @@
     },
     "ios": { "supportsTablet": true },
     "android": {
-      "adaptiveIcon": { "backgroundColor": "#FF6B4A" }
+      "adaptiveIcon": { "backgroundColor": "#FF6B4A" },
+      "permissions": ["android.permission.health.READ_STEPS", "android.permission.ACTIVITY_RECOGNITION"]
     },
     "web": { "bundler": "metro", "output": "static" },
-    "plugins": ["expo-router", "expo-font"],
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "react-native-health",
+        {
+          "healthSharePermission": "StepLeague reads your step count to track your daily goal and streaks.",
+          "healthUpdatePermission": "StepLeague does not write health data; this permission is unused."
+        }
+      ],
+      "react-native-health-connect"
+    ],
     "experiments": { "typedRoutes": true }
   }
 }

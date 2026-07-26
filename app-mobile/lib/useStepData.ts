@@ -1,11 +1,11 @@
 /**
  * Step data hook over a swappable provider.
  *
- * Today it ships `mockStepProvider` (fake data + simulated async + stub
- * permission). To wire real data later (Apple HealthKit / Google Fit — which
- * needs a native dev-client build, not Expo Go), implement the
- * `StepDataProvider` interface and swap `activeProvider` below. No consuming
- * component needs to change.
+ * Ships `mockStepProvider` (fake data + simulated async + stub permission) as
+ * the default, and a real `healthStepProvider` (Apple HealthKit / Google Fit
+ * Health Connect, see `./healthStepProvider.ts`) behind the
+ * `USE_REAL_HEALTH_PROVIDER` flag below. No consuming component needs to
+ * change regardless of which is active — both implement `StepDataProvider`.
  */
 import { useEffect, useRef, useState } from 'react';
 import { currentUser } from './mockData';
@@ -54,8 +54,35 @@ const mockStepProvider: StepDataProvider = {
   },
 };
 
-// Swap this for a real provider when native Health integration lands.
-const activeProvider: StepDataProvider = mockStepProvider;
+/**
+ * Gates the real `healthStepProvider` (react-native-health /
+ * react-native-health-connect). Defaults to `false` — those libraries have
+ * native modules that only exist in a custom EAS dev-client build; Expo Go
+ * and CI/test environments do not have them linked, so leaving this on by
+ * default would break `npm start`/Expo Go for every contributor and crash
+ * Jest. A human should flip this only after building a dev client and
+ * manually verifying the flow on a real device (see the checklist in
+ * `healthStepProvider.ts`).
+ *
+ * Toggle via `EXPO_PUBLIC_USE_REAL_HEALTH_PROVIDER=true` (in `.env` or the
+ * shell) once that verification is done, or flip the fallback below.
+ */
+export const USE_REAL_HEALTH_PROVIDER =
+  process.env.EXPO_PUBLIC_USE_REAL_HEALTH_PROVIDER === 'true';
+
+function resolveProvider(): StepDataProvider {
+  if (USE_REAL_HEALTH_PROVIDER) {
+    // Lazy require so `mockStepProvider` (and therefore Expo Go / Jest) never
+    // pays the cost of importing native-module-backed libraries that aren't
+    // linked in those environments.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { healthStepProvider } = require('./healthStepProvider') as typeof import('./healthStepProvider');
+    return healthStepProvider;
+  }
+  return mockStepProvider;
+}
+
+const activeProvider: StepDataProvider = resolveProvider();
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
