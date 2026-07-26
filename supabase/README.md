@@ -7,7 +7,7 @@ algorithms documented in `../docs/PRD.md` §13.
 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. In the SQL Editor, run every file in `migrations/` in numeric order
-   (`0001_init.sql` through `0011_activity_reactions.sql` as of this writing —
+   (`0001_init.sql` through `0012_activity_comments.sql` as of this writing —
    run `ls migrations/` to confirm you have the latest) — creates tables,
    triggers, RPCs, RLS policies. Then optionally run `seed.sql` (adds two
    joinable challenge presets matching the prototype).
@@ -156,6 +156,26 @@ Activity reactions / likes (issue #34, `0011_activity_reactions.sql`):
   visibility per id (only meaningful for ids the caller already got from
   `get_friend_activity_feed`); events with zero reactions are simply
   omitted from the result.
+
+Activity comments (issue #35, `0012_activity_comments.sql`):
+
+- `activity_comments` — `event_id` (fk to `activity_events`), `user_id`,
+  `body` (capped at 280 chars), `created_at`. Same trade-off as
+  `activity_events` itself: RLS only allows a user to select/insert/delete
+  their own comment rows directly; friend-scoped reads go through the RPCs
+  below rather than a broad "friends can select" policy.
+- `can_view_activity_event(p_event_id)` — shared `security definer` helper;
+  true iff the event belongs to the caller or an accepted friend. Delegates
+  to `get_friend_activity_feed` instead of re-deriving the friend-set CTE,
+  so the two visibility rules can't drift apart.
+- `add_activity_comment(p_event_id, p_body)` — inserts a comment after
+  checking `can_view_activity_event` and the 280-char limit; returns the new
+  row.
+- `get_activity_comments(p_event_id)` — all comments for an event the caller
+  can see, oldest first, with `display_name`/`avatar_color` joined in.
+- `delete_activity_comment(p_comment_id)` — deletes a comment the caller
+  owns (a thin `security invoker` wrapper over the RLS delete policy, mainly
+  so a missing/foreign row raises a clear error instead of a silent no-op).
 
 ## Testing / verifying migrations
 
