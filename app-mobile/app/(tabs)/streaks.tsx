@@ -1,23 +1,51 @@
+import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { colors, fontFamily, spacing } from '@/lib/theme';
-import { buildStreakDays, challenges } from '@/lib/mockData';
+import { useStepData } from '@/lib/useStepData';
+import { getMyStreak, getMyStreakDays } from '@/lib/api/streaks';
+import { getChallenges, joinChallenge } from '@/lib/api/challenges';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { StreakCalendar } from '@/components/StreakCalendar';
 import { StreakFlame } from '@/components/StreakFlame';
 import { ChallengeCard } from '@/components/ChallengeCard';
 import { Card } from '@/components/Card';
 import { Text } from '@/components/Text';
+import type { Challenge, StreakDay } from '@/lib/types';
 
 export default function Streaks() {
-  const streakDays = buildStreakDays();
+  const { data } = useStepData();
+  const [streakLength, setStreakLength] = useState(0);
+  const [streakDays, setStreakDays] = useState<StreakDay[]>([]);
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+
+  const refreshChallenges = useCallback(() => {
+    getChallenges().then(setChallenges).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!data) return;
+    getMyStreak()
+      .then((streak) => setStreakLength(streak.currentLength))
+      .catch(() => {});
+    getMyStreakDays(data.dailyGoal)
+      .then(setStreakDays)
+      .catch(() => {});
+    refreshChallenges();
+  }, [data, refreshChallenges]);
+
   const active = challenges.filter((c) => c.variant === 'active');
   const joinable = challenges.filter((c) => c.variant === 'joinable');
+
+  async function handleJoin(id: string) {
+    await joinChallenge(id);
+    refreshChallenges();
+  }
 
   return (
     <ScreenContainer>
       <View style={styles.header}>
         <Text style={styles.title}>Streaks</Text>
-        <StreakFlame days={6} />
+        <StreakFlame days={streakLength} />
       </View>
 
       <Card style={styles.calendarCard}>
@@ -37,7 +65,7 @@ export default function Streaks() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Join a challenge</Text>
         {joinable.map((c) => (
-          <ChallengeCard key={c.id} challenge={c} onJoin={() => {}} />
+          <ChallengeCard key={c.id} challenge={c} onJoin={handleJoin} />
         ))}
       </View>
     </ScreenContainer>

@@ -5,27 +5,34 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily, radii, spacing } from '@/lib/theme';
 import { useStepData } from '@/lib/useStepData';
-import { useOnboardingStatus } from '@/lib/useOnboardingStatus';
+import { useAuth } from '@/lib/useAuth';
+import { createMyProfile } from '@/lib/api/profile';
 import { Text } from '@/components/Text';
 import { PrimaryButton } from '@/components/PrimaryButton';
 
 export default function Onboarding() {
   const router = useRouter();
   const { requestPermission } = useStepData();
-  const { completeOnboarding } = useOnboardingStatus();
+  const { session } = useAuth();
   const [loading, setLoading] = useState(false);
+
+  async function finishOnboarding() {
+    const fallbackName = session?.user.email?.split('@')[0] ?? 'Player';
+    await createMyProfile(fallbackName);
+    router.replace('/(tabs)/home');
+  }
 
   async function handleGrant() {
     setLoading(true);
     await requestPermission(); // stubbed -> 'granted'
+    await finishOnboarding();
     setLoading(false);
-    completeOnboarding();
-    router.replace('/(tabs)/home');
   }
 
-  function handleSkipInvite() {
-    completeOnboarding();
-    router.replace('/(tabs)/home');
+  async function handleSkipInvite() {
+    setLoading(true);
+    await finishOnboarding();
+    setLoading(false);
   }
 
   return (

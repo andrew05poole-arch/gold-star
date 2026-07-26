@@ -290,3 +290,15 @@ rivalDailyTarget = clamp(round(trailingAvg * band), MIN_TARGET, MAX_TARGET)
 - **Qualifying threshold:** does a day require hitting `dailyGoal`, or a lower "streak floor" (e.g. 60% of goal) so an off day doesn't instantly reset weeks of progress? **Proposed:** a streak floor below the daily goal, tunable.
 - **Streak freeze / grace:** Duolingo-style — should users get a small number of "freezes" (`freezesRemaining`) that auto-save a missed day? **Proposed:** yes, 1–2 freezes, earned back slowly; reduces rage-quit on a single missed day. Flagged for product decision.
 - **Backfill / late sync:** if Health data syncs late (e.g. a phone was offline), a previously-missed day may retroactively qualify. MVP should recompute the streak when historical step data arrives rather than treating the streak as immutable.
+
+### 13.6 Implementation Status
+
+The data model above is implemented as a real Supabase (Postgres) backend —
+see `../supabase/README.md` and `../supabase/migrations/0001_init.sql` for
+the schema, triggers, RLS policies, and `get_leaderboard` / `get_rival_target`
+RPCs, and `app-mobile/lib/api/` for the client-side wrappers. The streak
+floor (§13.5) ships at 60% of `dailyGoal`, with 2 starting freezes. The step
+*sensor* layer (HealthKit/Google Fit, §7 Data Layer) is still mocked —
+`app-mobile/lib/useStepData.ts` — but writes through to `step_records`, so
+the rest of the backend operates on genuinely persisted data ahead of real
+Health integration.

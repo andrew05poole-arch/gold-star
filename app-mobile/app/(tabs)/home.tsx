@@ -1,7 +1,10 @@
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { colors, fontFamily, spacing } from '@/lib/theme';
 import { useStepData } from '@/lib/useStepData';
-import { rival } from '@/lib/mockData';
+import { getRivalStatus } from '@/lib/api/rival';
+import { getMyStreak } from '@/lib/api/streaks';
+import { rival as fallbackRival } from '@/lib/mockData';
 import { formatSteps } from '@/lib/format';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { StepCounter } from '@/components/StepCounter';
@@ -10,9 +13,23 @@ import { ProgressBar } from '@/components/ProgressBar';
 import { RivalPaceSliver } from '@/components/RivalPaceSliver';
 import { Card } from '@/components/Card';
 import { Text } from '@/components/Text';
+import type { RivalStatus } from '@/lib/types';
 
 export default function Home() {
   const { data, isLoading } = useStepData();
+  const [rival, setRival] = useState<RivalStatus>(fallbackRival);
+  const [streakDays, setStreakDays] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!data) return;
+    const todayNormalized = data.weeklyHistory[data.weeklyHistory.length - 1]?.normalizedSteps ?? data.todaySteps;
+    getRivalStatus(todayNormalized)
+      .then(setRival)
+      .catch(() => {});
+    getMyStreak()
+      .then((streak) => setStreakDays(streak.currentLength))
+      .catch(() => {});
+  }, [data]);
 
   if (isLoading || !data) {
     return (
@@ -31,7 +48,7 @@ export default function Home() {
     <ScreenContainer>
       <View style={styles.header}>
         <Text style={styles.greeting}>Today</Text>
-        <StreakFlame days={data.streakDays} />
+        <StreakFlame days={streakDays ?? data.streakDays} />
       </View>
 
       <Card style={styles.counterCard}>
