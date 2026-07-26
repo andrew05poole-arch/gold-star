@@ -6,12 +6,15 @@ algorithms documented in `../docs/PRD.md` §13.
 ## Set up a project
 
 1. Create a free project at [supabase.com](https://supabase.com).
-2. In the SQL Editor, run the migrations in `migrations/` in numeric order
-   (`0001_init.sql`, then `0002_challenge_progress.sql`,
-   `0003_rival_profile_onboarding.sql`, `0004_friend_requests.sql`,
-   `0005_referral_codes.sql`, ...) — creates tables, triggers, RPCs, RLS
-   policies. Then optionally run `seed.sql` (adds two joinable challenge
-   presets matching the prototype).
+2. In the SQL Editor, run every file in `migrations/` in numeric order
+   (`0001_init.sql` through `0007_create_challenge.sql` as of this writing —
+   run `ls migrations/` to confirm you have the latest) — creates tables,
+   triggers, RPCs, RLS policies. Then optionally run `seed.sql` (adds two
+   joinable challenge presets matching the prototype).
+   **None of this SQL has been executed against a live Supabase project in
+   development** — every migration was written and typechecked against the
+   client only; running the full sequence once and sanity-checking each RPC
+   (see below) is a required manual step, not optional polish.
 3. In **Authentication -> Providers**, ensure **Email** is enabled. The app
    uses passwordless OTP (`signInWithOtp`), so disable "Confirm email" /
    leave magic-link OTP defaults — no password flow is wired up client-side.
@@ -73,16 +76,44 @@ Shareable invite codes (issue #7, `0005_referral_codes.sql`):
   from onboarding's optional "Got an invite code?" field once the new
   user's profile has been created.
 
+Friend removal (`0006_remove_friend.sql`):
+
+- `remove_friend(p_friend_id)` — deletes both directional `accepted` rows
+  between the caller and the target. Triggered by a long-press on a
+  leaderboard row.
+
+Custom challenges (`0007_create_challenge.sql`):
+
+- `create_challenge(p_title, p_goal_type, p_goal_value, p_duration_days)` —
+  inserts a new `challenges` row and joins the caller as its first
+  participant in one transaction (`challenges` has no client-facing insert
+  policy, so this must go through the RPC rather than a direct table
+  insert). Progress/status for the new challenge are picked up automatically
+  by the existing `0002`/`0005` triggers and view — no extra wiring needed.
+
+## Testing / verifying migrations
+
+There is no automated test harness for the SQL in this repo (no CI step
+applies migrations to a database). Before relying on a new or changed
+migration:
+
+1. Apply it to a scratch/dev Supabase project via the SQL editor or the
+   Supabase CLI (`supabase db push`).
+2. Exercise the RPC(s) it adds directly (SQL editor `select` / `perform`
+   calls, or through the app) and confirm the expected rows/columns change.
+3. Re-run the full migration sequence from `0001` on a fresh project
+   periodically to catch ordering or idempotency regressions — see
+   "Re-running" below.
+
 ## Migration convention
 
 New schema changes go in a new numbered file under `migrations/` (e.g.
-`0005_*.sql`) — never edit an already-shipped migration (`0001_init.sql`,
+`0008_*.sql`) — never edit an already-shipped migration (`0001_init.sql`,
 `0002_challenge_progress.sql`, ...) in place, so migration history stays
 replayable against a project that already ran the earlier files.
 
 ## Re-running
 
-`0001_init.sql`, `0002_challenge_progress.sql`, and `seed.sql` are safe to
-run more than once (`create table` isn't idempotent today — if you need to
-re-run the schema from scratch, drop the tables first or use a fresh
-project).
+All migration files and `seed.sql` are safe to run more than once
+(`create table` isn't idempotent today — if you need to re-run the schema
+from scratch, drop the tables first or use a fresh project).
