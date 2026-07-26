@@ -7,7 +7,7 @@ algorithms documented in `../docs/PRD.md` §13.
 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. In the SQL Editor, run every file in `migrations/` in numeric order
-   (`0001_init.sql` through `0007_create_challenge.sql` as of this writing —
+   (`0001_init.sql` through `0008_activity_events.sql` as of this writing —
    run `ls migrations/` to confirm you have the latest) — creates tables,
    triggers, RPCs, RLS policies. Then optionally run `seed.sql` (adds two
    joinable challenge presets matching the prototype).
@@ -90,6 +90,32 @@ Custom challenges (`0007_create_challenge.sql`):
   policy, so this must go through the RPC rather than a direct table
   insert). Progress/status for the new challenge are picked up automatically
   by the existing `0002`/`0005` triggers and view — no extra wiring needed.
+
+Activity feed foundation (issue #33, `0008_activity_events.sql`) — schema
+and auto-logging only; reactions/comments/UI are separate follow-up issues:
+
+- `activity_events` — `user_id`, `event_type` (`streak_milestone` |
+  `challenge_completed` | `challenge_joined` | `friend_added`), `payload`
+  jsonb, `created_at`. RLS only allows a user to select their own rows
+  directly; friend-scoped reads go through the RPC below (same trade-off as
+  `get_leaderboard`).
+- `get_friend_activity_feed(p_user_id)` — caller + accepted friends' events,
+  newest first, capped at 100 rows.
+- Auto-logging triggers insert rows with no client involvement:
+  - `trg_after_streak_update_log_milestone` on `streaks` — fires a
+    `streak_milestone` event the moment `current_length` crosses 3, 7, or 30
+    (not on every day past the threshold).
+  - `trg_after_challenge_participant_progress_log_completion` on
+    `challenge_participants` — fires a `challenge_completed` event when a
+    `progress` write causes the `challenge_participant_status` (0005) logic
+    to newly evaluate to `completed`. Since that status is otherwise only
+    computed at read time off wall-clock date, a participant who already met
+    their goal but stops syncing steps before the window closes won't get an
+    event — an accepted gap for a feed, not a source of truth.
+  - `trg_after_friendship_write_log_friend_added` on `friendships` — fires a
+    `friend_added` event for a row's `user_id` whenever that row becomes
+    `accepted` (covers both the flipped original row and the mirrored
+    reverse row `respond_to_friend_request`, 0004, writes on acceptance).
 
 ## Testing / verifying migrations
 
