@@ -7,7 +7,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "jest"
   },
   "private": true,
   "dependencies": {
@@ -29,5 +30,13 @@
     "react-native-screens": "^4.25.2",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-web": "^0.21.2"
+  },
+  "devDependencies": {
+    "@testing-library/react-native": "^14.0.1",
+    "@types/jest": "^29.5.14",
+    "jest-expo": "^56.0.5"
+  },
+  "jest": {
+    "preset": "jest-expo"
   }
 }
