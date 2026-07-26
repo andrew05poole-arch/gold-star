@@ -40,6 +40,14 @@ export interface Friend {
   previousRank: number;
 }
 
+/** An incoming, not-yet-accepted friend request. */
+export interface PendingFriendRequest {
+  requesterId: string;
+  displayName: string;
+  avatarColor: string;
+  createdAt: string;
+}
+
 export interface RivalStatus {
   name: string;
   difficultyBand: 'chill' | 'even' | 'pushy';
