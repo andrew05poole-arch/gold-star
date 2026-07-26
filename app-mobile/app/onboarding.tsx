@@ -49,7 +49,10 @@ export default function Onboarding() {
     const parsed = Number(heightCm);
     const heightValue = heightCm.trim().length > 0 && Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
     if (pendingGrant) {
-      await requestPermission(); // stubbed -> 'granted'
+      // Resolves via mockStepProvider ('granted') by default, or the real
+      // HealthKit/Health Connect permission prompt when
+      // USE_REAL_HEALTH_PROVIDER is enabled — see lib/useStepData.ts.
+      await requestPermission();
     }
     await finishOnboarding(heightValue);
     setLoading(false);
@@ -58,7 +61,7 @@ export default function Onboarding() {
   async function handleSkipHeight() {
     setLoading(true);
     if (pendingGrant) {
-      await requestPermission(); // stubbed -> 'granted'
+      await requestPermission();
     }
     await finishOnboarding(undefined);
     setLoading(false);
