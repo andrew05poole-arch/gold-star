@@ -15,6 +15,9 @@ export interface User {
   heightCm?: number;
   strideLengthCm?: number;
   referralCode?: string;
+  city?: string;
+  region?: string;
+  country?: string;
 }
 
 /** A single day's step data (raw + normalized). */

@@ -25,7 +25,7 @@ algorithms documented in `../docs/PRD.md` §13.
 
 | Table | Purpose |
 |---|---|
-| `profiles` | 1:1 with `auth.users`; display name, daily goal, stride/height for normalization |
+| `profiles` | 1:1 with `auth.users`; display name, daily goal, stride/height for normalization, optional self-reported city/region/country (`0009_profile_location.sql`) for future geo leaderboards |
 | `step_records` | One row per user per day; `raw_steps` in, `normalized_steps` computed by trigger (§13.2) |
 | `streaks` | Current/longest streak + freezes remaining; recomputed by trigger on every step-record write (§13.5) |
 | `friendships` | Directional rows; `pending` until the recipient accepts via `respond_to_friend_request`, then mirrored as `accepted` in both directions |
@@ -134,7 +134,7 @@ migration:
 ## Migration convention
 
 New schema changes go in a new numbered file under `migrations/` (e.g.
-`0008_*.sql`) — never edit an already-shipped migration (`0001_init.sql`,
+`0010_*.sql`) — never edit an already-shipped migration (`0001_init.sql`,
 `0002_challenge_progress.sql`, ...) in place, so migration history stays
 replayable against a project that already ran the earlier files.
 
