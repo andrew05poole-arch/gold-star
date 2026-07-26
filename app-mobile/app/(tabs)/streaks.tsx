@@ -33,7 +33,8 @@ export default function Streaks() {
     refreshChallenges();
   }, [data, refreshChallenges]);
 
-  const active = challenges.filter((c) => c.variant === 'active');
+  const active = challenges.filter((c) => c.variant === 'active' && c.status === 'active');
+  const finished = challenges.filter((c) => c.variant === 'active' && c.status !== 'active');
   const joinable = challenges.filter((c) => c.variant === 'joinable');
 
   async function handleJoin(id: string) {
@@ -57,6 +58,15 @@ export default function Streaks() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Active challenge</Text>
           {active.map((c) => (
+            <ChallengeCard key={c.id} challenge={c} />
+          ))}
+        </View>
+      )}
+
+      {finished.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Challenge history</Text>
+          {finished.map((c) => (
             <ChallengeCard key={c.id} challenge={c} />
           ))}
         </View>

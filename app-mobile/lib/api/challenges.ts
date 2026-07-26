@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import type { Challenge } from '../types';
+import type { Challenge, ChallengeStatus } from '../types';
 
 interface ChallengeRow {
   id: string;
@@ -14,17 +14,24 @@ interface ParticipantRow {
   progress: number;
 }
 
+// Mirrors public.challenge_participant_status (0005_challenge_completion.sql),
+// which derives `status` from the participant's own window vs. today rather
+// than a value stored on challenge_participants, so it can never go stale.
+interface ParticipantStatusRow extends ParticipantRow {
+  status: ChallengeStatus;
+}
+
 export async function getChallenges(): Promise<Challenge[]> {
   const { data: auth } = await supabase.auth.getUser();
   const [{ data: challengeRows, error: cErr }, { data: participantRows, error: pErr }] = await Promise.all([
     supabase.from('challenges').select('id, title, subtitle, goal_value'),
-    supabase.from('challenge_participants').select('challenge_id, user_id, progress'),
+    supabase.from('challenge_participant_status').select('challenge_id, user_id, progress, status'),
   ]);
   if (cErr) throw cErr;
   if (pErr) throw pErr;
 
-  const byChallenge = new Map<string, ParticipantRow[]>();
-  for (const row of (participantRows as ParticipantRow[] | null) ?? []) {
+  const byChallenge = new Map<string, ParticipantStatusRow[]>();
+  for (const row of (participantRows as ParticipantStatusRow[] | null) ?? []) {
     const list = byChallenge.get(row.challenge_id) ?? [];
     list.push(row);
     byChallenge.set(row.challenge_id, list);
@@ -38,6 +45,7 @@ export async function getChallenges(): Promise<Challenge[]> {
       title: row.title,
       subtitle: row.subtitle ?? '',
       variant: mine ? 'active' : 'joinable',
+      status: mine?.status,
       progress: mine ? Math.min(1, mine.progress / row.goal_value) : 0,
       participants: participants.length,
     };

@@ -57,11 +57,20 @@ export interface RivalStatus {
 
 export type ChallengeVariant = 'active' | 'joinable';
 
+/**
+ * Lifecycle state of a joined challenge, derived from the participant's own
+ * [joined_at, joined_at + duration_days - 1] window vs. today, and whether
+ * their progress met the goal once that window closed. Undefined when the
+ * challenge hasn't been joined (variant === 'joinable').
+ */
+export type ChallengeStatus = 'active' | 'completed' | 'expired';
+
 export interface Challenge {
   id: string;
   title: string;
   subtitle: string;
   variant: ChallengeVariant;
+  status?: ChallengeStatus; // set when variant === 'active'
   progress: number; // 0..1, used when variant === 'active'
   participants: number;
 }
