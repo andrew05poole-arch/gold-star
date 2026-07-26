@@ -7,9 +7,10 @@ algorithms documented in `../docs/PRD.md` §13.
 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. In the SQL Editor, run the migrations in `migrations/` in numeric order
-   (`0001_init.sql`, then `0002_challenge_progress.sql`, ...) — creates
-   tables, triggers, RPCs, RLS policies. Then optionally run `seed.sql`
-   (adds two joinable challenge presets matching the prototype).
+   (`0001_init.sql`, then `0002_challenge_progress.sql`,
+   `0003_rival_profile_onboarding.sql`, ...) — creates tables, triggers,
+   RPCs, RLS policies. Then optionally run `seed.sql` (adds two joinable
+   challenge presets matching the prototype).
 3. In **Authentication -> Providers**, ensure **Email** is enabled. The app
    uses passwordless OTP (`signInWithOtp`), so disable "Confirm email" /
    leave magic-link OTP defaults — no password flow is wired up client-side.
@@ -25,7 +26,7 @@ algorithms documented in `../docs/PRD.md` §13.
 | `streaks` | Current/longest streak + freezes remaining; recomputed by trigger on every step-record write (§13.5) |
 | `friendships` | Symmetric accepted-friend rows, created via `add_friend_by_email` |
 | `challenges` / `challenge_participants` | Joinable challenge presets + per-user progress |
-| `rival_profiles` | Per-user AI rival config (name, difficulty band) |
+| `rival_profiles` | Per-user AI rival config (name, difficulty band); auto-created via trigger when a `profiles` row is inserted (`0003_rival_profile_onboarding.sql`) |
 
 Two RPCs do the heavier lifting under RLS (`security definer`, scoped to the
 calling user):
