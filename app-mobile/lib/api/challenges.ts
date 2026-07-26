@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import type { Challenge, ChallengeStatus } from '../types';
+import type { Challenge, ChallengeGoalType, ChallengeStatus } from '../types';
 
 interface ChallengeRow {
   id: string;
@@ -59,4 +59,24 @@ export async function joinChallenge(challengeId: string): Promise<void> {
     .from('challenge_participants')
     .upsert({ challenge_id: challengeId, user_id: auth.user.id, progress: 0 }, { onConflict: 'challenge_id,user_id' });
   if (error) throw error;
+}
+
+// Creates a new challenge and joins the caller as its first participant, in
+// a single atomic call. See supabase/migrations/0007_create_challenge.sql —
+// `challenges` has no client insert policy, so this is done via a
+// `security definer` RPC rather than a two-step client insert.
+export async function createChallenge(
+  title: string,
+  goalType: ChallengeGoalType,
+  goalValue: number,
+  durationDays: number,
+): Promise<string> {
+  const { data, error } = await supabase.rpc('create_challenge', {
+    p_title: title,
+    p_goal_type: goalType,
+    p_goal_value: goalValue,
+    p_duration_days: durationDays,
+  });
+  if (error) throw error;
+  return data as string;
 }

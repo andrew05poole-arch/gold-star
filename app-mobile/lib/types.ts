@@ -58,6 +58,9 @@ export interface RivalStatus {
 
 export type ChallengeVariant = 'active' | 'joinable';
 
+/** Mirrors `challenges.goal_type` in supabase/migrations/0001_init.sql. */
+export type ChallengeGoalType = 'stepsPerDay' | 'totalSteps' | 'daysStreak';
+
 /**
  * Lifecycle state of a joined challenge, derived from the participant's own
  * [joined_at, joined_at + duration_days - 1] window vs. today, and whether
