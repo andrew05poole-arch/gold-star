@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { Share, StyleSheet, TextInput, View } from 'react-native';
 import { colors, fontFamily, radii, spacing } from '@/lib/theme';
 import { nextWeeklyResetMs } from '@/lib/mockData';
 import {
@@ -9,6 +9,7 @@ import {
   acceptFriendRequest,
   declineFriendRequest,
 } from '@/lib/api/leaderboard';
+import { getMyProfile } from '@/lib/api/profile';
 import { useAuth } from '@/lib/useAuth';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { LeaderboardRow } from '@/components/LeaderboardRow';
@@ -27,13 +28,30 @@ export default function Leaderboard() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
 
   const refresh = useCallback(() => {
     getLeaderboard().then(setLeaderboard).catch(() => {});
     getPendingFriendRequests().then(setPendingRequests).catch(() => {});
+    getMyProfile().then((profile) => setReferralCode(profile?.referralCode ?? null)).catch(() => {});
   }, []);
 
   useEffect(refresh, [refresh]);
+
+  async function handleShareInvite() {
+    if (!referralCode) return;
+    setSharing(true);
+    try {
+      await Share.share({
+        message: `Join me on StepLeague! Use code ${referralCode} when you sign up.`,
+      });
+    } catch {
+      // User dismissed the share sheet or sharing failed silently — no-op.
+    } finally {
+      setSharing(false);
+    }
+  }
 
   async function handleInvite() {
     setInviteError(null);
@@ -136,6 +154,14 @@ export default function Leaderboard() {
         ) : (
           <PrimaryButton label="Invite friends" onPress={() => setInviteOpen(true)} style={styles.inviteBtn} />
         )}
+        <PrimaryButton
+          label="Share invite link"
+          variant="secondary"
+          onPress={handleShareInvite}
+          loading={sharing}
+          disabled={!referralCode}
+          style={styles.inviteBtn}
+        />
       </View>
     </ScreenContainer>
   );

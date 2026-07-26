@@ -14,6 +14,7 @@ export interface User {
   dailyGoal: number;
   heightCm?: number;
   strideLengthCm?: number;
+  referralCode?: string;
 }
 
 /** A single day's step data (raw + normalized). */

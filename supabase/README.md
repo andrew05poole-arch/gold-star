@@ -8,9 +8,10 @@ algorithms documented in `../docs/PRD.md` §13.
 1. Create a free project at [supabase.com](https://supabase.com).
 2. In the SQL Editor, run the migrations in `migrations/` in numeric order
    (`0001_init.sql`, then `0002_challenge_progress.sql`,
-   `0003_rival_profile_onboarding.sql`, `0004_friend_requests.sql`, ...) —
-   creates tables, triggers, RPCs, RLS policies. Then optionally run
-   `seed.sql` (adds two joinable challenge presets matching the prototype).
+   `0003_rival_profile_onboarding.sql`, `0004_friend_requests.sql`,
+   `0005_referral_codes.sql`, ...) — creates tables, triggers, RPCs, RLS
+   policies. Then optionally run `seed.sql` (adds two joinable challenge
+   presets matching the prototype).
 3. In **Authentication -> Providers**, ensure **Email** is enabled. The app
    uses passwordless OTP (`signInWithOtp`), so disable "Confirm email" /
    leave magic-link OTP defaults — no password flow is wired up client-side.
@@ -59,6 +60,18 @@ Friend requests (§7/§8, `0004_friend_requests.sql`):
   (deletes the row).
 - `get_pending_friend_requests()` — incoming pending requests for the
   current user.
+
+Shareable invite codes (issue #7, `0005_referral_codes.sql`):
+
+- `profiles.referral_code` — unique 8-char code auto-generated for every
+  profile on insert (backfilled for existing rows). Shared via the native
+  Share sheet on the Leaderboard tab ("Join me on StepLeague! Use code
+  ABC123 when you sign up.") so a user can invite someone who hasn't
+  installed the app yet — no deep link required.
+- `add_friend_by_referral_code(p_code)` — same pending-request semantics as
+  `add_friend_by_email`, looked up by referral code instead of email. Called
+  from onboarding's optional "Got an invite code?" field once the new
+  user's profile has been created.
 
 ## Migration convention
 

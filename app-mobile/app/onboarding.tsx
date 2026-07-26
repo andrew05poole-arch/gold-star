@@ -7,6 +7,7 @@ import { colors, fontFamily, fontSize, radii, spacing } from '@/lib/theme';
 import { useStepData } from '@/lib/useStepData';
 import { useAuth } from '@/lib/useAuth';
 import { createMyProfile } from '@/lib/api/profile';
+import { addFriendByReferralCode } from '@/lib/api/leaderboard';
 import { Text } from '@/components/Text';
 import { PrimaryButton } from '@/components/PrimaryButton';
 
@@ -20,10 +21,16 @@ export default function Onboarding() {
   const [heightCm, setHeightCm] = useState('');
   const [loading, setLoading] = useState(false);
   const [pendingGrant, setPendingGrant] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
 
   async function finishOnboarding(heightValue?: number) {
     const fallbackName = session?.user.email?.split('@')[0] ?? 'Player';
     await createMyProfile(fallbackName, heightValue);
+    const code = inviteCode.trim();
+    if (code) {
+      // Best-effort: an invalid/unknown code shouldn't block onboarding.
+      await addFriendByReferralCode(code).catch(() => {});
+    }
     router.replace('/(tabs)/home');
   }
 
@@ -117,6 +124,16 @@ export default function Onboarding() {
       </View>
 
       <View style={styles.actions}>
+        <Text style={styles.inviteLabel}>Got an invite code?</Text>
+        <TextInput
+          value={inviteCode}
+          onChangeText={setInviteCode}
+          placeholder="Optional — e.g. AB3XQ9KP"
+          placeholderTextColor={colors.textSecondary}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          style={styles.inviteInput}
+        />
         <PrimaryButton label="Connect my steps" onPress={handleGrant} />
         <PrimaryButton label="I'll invite friends later" variant="ghost" onPress={handleSkipInvite} />
         <Text style={styles.privacy}>We only read step counts. You're always in control.</Text>
@@ -176,5 +193,19 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   actions: { gap: spacing.sm },
+  inviteLabel: { fontFamily: fontFamily.bold, fontSize: 13, color: colors.textSecondary },
+  inviteInput: {
+    height: 48,
+    width: '100%',
+    borderRadius: radii.md,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    fontFamily: fontFamily.semibold,
+    fontSize: 14,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
   privacy: { fontFamily: fontFamily.semibold, fontSize: 12, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xs },
 });
