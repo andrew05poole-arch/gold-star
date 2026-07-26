@@ -39,6 +39,12 @@ export async function addFriendByEmail(email: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Sends a friend request to the owner of a referral code (see onboarding invite-code field). */
+export async function addFriendByReferralCode(code: string): Promise<void> {
+  const { error } = await supabase.rpc('add_friend_by_referral_code', { p_code: code });
+  if (error) throw error;
+}
+
 /** Incoming pending friend requests awaiting the current user's response. */
 export async function getPendingFriendRequests(): Promise<PendingFriendRequest[]> {
   const { data, error } = await supabase.rpc('get_pending_friend_requests');
