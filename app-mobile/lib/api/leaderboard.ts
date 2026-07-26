@@ -17,13 +17,8 @@ interface PendingFriendRequestRow {
   created_at: string;
 }
 
-/** Wraps the get_leaderboard RPC (current user + accepted friends, current ISO week, ranked). */
-export async function getLeaderboard(): Promise<Friend[]> {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return [];
-  const { data, error } = await supabase.rpc('get_leaderboard', { p_user_id: auth.user.id });
-  if (error) throw error;
-  return (data as LeaderboardRow[] | null ?? []).map((row) => ({
+function mapLeaderboardRows(data: LeaderboardRow[] | null): Friend[] {
+  return (data ?? []).map((row) => ({
     id: row.user_id,
     displayName: row.display_name,
     avatarColor: row.avatar_color,
@@ -31,6 +26,36 @@ export async function getLeaderboard(): Promise<Friend[]> {
     rank: row.rank,
     previousRank: row.previous_rank ?? row.rank,
   }));
+}
+
+/** Wraps the get_leaderboard RPC (current user + accepted friends, current ISO week, ranked). */
+export async function getLeaderboard(): Promise<Friend[]> {
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return [];
+  const { data, error } = await supabase.rpc('get_leaderboard', { p_user_id: auth.user.id });
+  if (error) throw error;
+  return mapLeaderboardRows(data as LeaderboardRow[] | null);
+}
+
+/** Wraps get_city_leaderboard: public ranking of every profile sharing `city` (case-insensitive). */
+export async function getCityLeaderboard(city: string): Promise<Friend[]> {
+  const { data, error } = await supabase.rpc('get_city_leaderboard', { p_city: city });
+  if (error) throw error;
+  return mapLeaderboardRows(data as LeaderboardRow[] | null);
+}
+
+/** Wraps get_country_leaderboard: public ranking of every profile sharing `country` (case-insensitive). */
+export async function getCountryLeaderboard(country: string): Promise<Friend[]> {
+  const { data, error } = await supabase.rpc('get_country_leaderboard', { p_country: country });
+  if (error) throw error;
+  return mapLeaderboardRows(data as LeaderboardRow[] | null);
+}
+
+/** Wraps get_global_leaderboard: public ranking across every profile. */
+export async function getGlobalLeaderboard(): Promise<Friend[]> {
+  const { data, error } = await supabase.rpc('get_global_leaderboard');
+  if (error) throw error;
+  return mapLeaderboardRows(data as LeaderboardRow[] | null);
 }
 
 /** Sends a pending friend request by email (requires the recipient to accept). */

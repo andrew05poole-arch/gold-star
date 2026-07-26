@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Share, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Share, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors, fontFamily, radii, spacing } from '@/lib/theme';
 import { nextWeeklyResetMs } from '@/lib/mockData';
 import {
   getLeaderboard,
+  getCityLeaderboard,
+  getCountryLeaderboard,
+  getGlobalLeaderboard,
   addFriendByEmail,
   getPendingFriendRequests,
   acceptFriendRequest,
@@ -18,10 +21,21 @@ import { CountdownPill } from '@/components/CountdownPill';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Avatar } from '@/components/Avatar';
 import { Text } from '@/components/Text';
-import type { Friend, PendingFriendRequest } from '@/lib/types';
+import type { Friend, PendingFriendRequest, User } from '@/lib/types';
+
+type Scope = 'friends' | 'city' | 'country' | 'global';
+
+const SCOPES: { key: Scope; label: string }[] = [
+  { key: 'friends', label: 'Friends' },
+  { key: 'city', label: 'City' },
+  { key: 'country', label: 'Country' },
+  { key: 'global', label: 'Global' },
+];
 
 export default function Leaderboard() {
   const { session } = useAuth();
+  const [scope, setScope] = useState<Scope>('friends');
+  const [profile, setProfile] = useState<User | null>(null);
   const [leaderboard, setLeaderboard] = useState<Friend[]>([]);
   const [pendingRequests, setPendingRequests] = useState<PendingFriendRequest[]>([]);
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
@@ -32,13 +46,45 @@ export default function Leaderboard() {
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
 
-  const refresh = useCallback(() => {
-    getLeaderboard().then(setLeaderboard).catch(() => {});
-    getPendingFriendRequests().then(setPendingRequests).catch(() => {});
-    getMyProfile().then((profile) => setReferralCode(profile?.referralCode ?? null)).catch(() => {});
+  const refreshProfile = useCallback(() => {
+    getMyProfile()
+      .then((p) => {
+        setProfile(p);
+        setReferralCode(p?.referralCode ?? null);
+      })
+      .catch(() => {});
   }, []);
 
+  const refreshLeaderboard = useCallback(() => {
+    let fetcher: Promise<Friend[]>;
+    if (scope === 'friends') {
+      fetcher = getLeaderboard();
+    } else if (scope === 'city') {
+      fetcher = profile?.city ? getCityLeaderboard(profile.city) : Promise.resolve([]);
+    } else if (scope === 'country') {
+      fetcher = profile?.country ? getCountryLeaderboard(profile.country) : Promise.resolve([]);
+    } else {
+      fetcher = getGlobalLeaderboard();
+    }
+    fetcher.then(setLeaderboard).catch(() => {});
+  }, [scope, profile?.city, profile?.country]);
+
+  const refresh = useCallback(() => {
+    refreshProfile();
+    if (scope === 'friends') {
+      getPendingFriendRequests().then(setPendingRequests).catch(() => {});
+    }
+  }, [refreshProfile, scope]);
+
   useEffect(refresh, [refresh]);
+  useEffect(refreshLeaderboard, [refreshLeaderboard]);
+
+  function handleChangeScope(next: Scope) {
+    if (next === scope) return;
+    if (next === 'city' && !profile?.city) return;
+    if (next === 'country' && !profile?.country) return;
+    setScope(next);
+  }
 
   async function handleShareInvite() {
     if (!referralCode) return;
@@ -62,6 +108,7 @@ export default function Leaderboard() {
       setInviteEmail('');
       setInviteOpen(false);
       refresh();
+      refreshLeaderboard();
     } catch (e) {
       setInviteError(e instanceof Error ? e.message : 'Could not send that request.');
     } finally {
@@ -78,7 +125,7 @@ export default function Leaderboard() {
         await declineFriendRequest(requesterId);
       }
       setPendingRequests((prev) => prev.filter((r) => r.requesterId !== requesterId));
-      if (accept) refresh();
+      if (accept) refreshLeaderboard();
     } catch {
       // Leave the request in the list so the user can retry.
     } finally {
@@ -95,7 +142,7 @@ export default function Leaderboard() {
         onPress: async () => {
           try {
             await removeFriend(friend.id);
-            refresh();
+            refreshLeaderboard();
           } catch {
             Alert.alert('Could not remove friend', 'Please try again.');
           }
@@ -111,7 +158,38 @@ export default function Leaderboard() {
         <CountdownPill getRemaining={() => nextWeeklyResetMs()} />
       </View>
 
-      {pendingRequests.length > 0 && (
+      <View style={styles.scopeSelector}>
+        {SCOPES.map(({ key, label }) => {
+          const active = key === scope;
+          const disabled = (key === 'city' && !profile?.city) || (key === 'country' && !profile?.country);
+          return (
+            <TouchableOpacity
+              key={key}
+              style={[styles.scopeOption, active && styles.scopeOptionActive, disabled && styles.scopeOptionDisabled]}
+              onPress={() => handleChangeScope(key)}
+              disabled={disabled}
+            >
+              <Text
+                style={[
+                  styles.scopeOptionText,
+                  active && styles.scopeOptionTextActive,
+                  disabled && styles.scopeOptionTextDisabled,
+                ]}
+              >
+                {label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      {scope === 'city' && !profile?.city && (
+        <Text style={styles.scopeHint}>Set your city on your Profile to see local rankings.</Text>
+      )}
+      {scope === 'country' && !profile?.country && (
+        <Text style={styles.scopeHint}>Set your country on your Profile to see national rankings.</Text>
+      )}
+
+      {scope === 'friends' && pendingRequests.length > 0 && (
         <View style={styles.requests}>
           <Text style={styles.requestsTitle}>Friend requests</Text>
           {pendingRequests.map((req) => (
@@ -146,47 +224,49 @@ export default function Leaderboard() {
             key={friend.id}
             friend={friend}
             isCurrentUser={friend.id === session?.user.id}
-            onLongPress={() => handleRemoveFriend(friend)}
+            onLongPress={scope === 'friends' ? () => handleRemoveFriend(friend) : undefined}
           />
         ))}
       </View>
 
-      <View style={styles.inviteCard}>
-        <Text style={styles.inviteTitle}>More friends = more fun</Text>
-        <Text style={styles.inviteSub}>Invite friends to climb the league together.</Text>
-        {inviteOpen ? (
-          <>
-            <TextInput
-              value={inviteEmail}
-              onChangeText={setInviteEmail}
-              placeholder="friend@example.com"
-              placeholderTextColor={colors.textSecondary}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              style={styles.inviteInput}
-            />
-            {inviteError && <Text style={styles.inviteError}>{inviteError}</Text>}
-            <PrimaryButton
-              label="Send request"
-              onPress={handleInvite}
-              loading={inviting}
-              disabled={!inviteEmail.includes('@')}
-              style={styles.inviteBtn}
-            />
-          </>
-        ) : (
-          <PrimaryButton label="Invite friends" onPress={() => setInviteOpen(true)} style={styles.inviteBtn} />
-        )}
-        <PrimaryButton
-          label="Share invite link"
-          variant="secondary"
-          onPress={handleShareInvite}
-          loading={sharing}
-          disabled={!referralCode}
-          style={styles.inviteBtn}
-        />
-      </View>
+      {scope === 'friends' && (
+        <View style={styles.inviteCard}>
+          <Text style={styles.inviteTitle}>More friends = more fun</Text>
+          <Text style={styles.inviteSub}>Invite friends to climb the league together.</Text>
+          {inviteOpen ? (
+            <>
+              <TextInput
+                value={inviteEmail}
+                onChangeText={setInviteEmail}
+                placeholder="friend@example.com"
+                placeholderTextColor={colors.textSecondary}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                style={styles.inviteInput}
+              />
+              {inviteError && <Text style={styles.inviteError}>{inviteError}</Text>}
+              <PrimaryButton
+                label="Send request"
+                onPress={handleInvite}
+                loading={inviting}
+                disabled={!inviteEmail.includes('@')}
+                style={styles.inviteBtn}
+              />
+            </>
+          ) : (
+            <PrimaryButton label="Invite friends" onPress={() => setInviteOpen(true)} style={styles.inviteBtn} />
+          )}
+          <PrimaryButton
+            label="Share invite link"
+            variant="secondary"
+            onPress={handleShareInvite}
+            loading={sharing}
+            disabled={!referralCode}
+            style={styles.inviteBtn}
+          />
+        </View>
+      )}
     </ScreenContainer>
   );
 }
@@ -200,6 +280,20 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.sm,
   },
+  scopeSelector: { flexDirection: 'row', gap: spacing.xs },
+  scopeOption: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    backgroundColor: '#EFEDFF',
+  },
+  scopeOptionActive: { backgroundColor: colors.rivalAccent },
+  scopeOptionDisabled: { opacity: 0.4 },
+  scopeOptionText: { fontFamily: fontFamily.bold, fontSize: 13, color: colors.rivalAccent },
+  scopeOptionTextActive: { color: '#FFFFFF' },
+  scopeOptionTextDisabled: { color: colors.rivalAccent },
+  scopeHint: { fontFamily: fontFamily.semibold, fontSize: 12, color: colors.textSecondary, textAlign: 'center' },
   requestsTitle: { fontFamily: fontFamily.extraBold, fontSize: 15, color: colors.textPrimary },
   requestRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   requestName: { flex: 1, fontFamily: fontFamily.bold, fontSize: 14, color: colors.textPrimary },
