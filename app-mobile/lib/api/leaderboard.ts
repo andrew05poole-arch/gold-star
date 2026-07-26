@@ -74,3 +74,9 @@ export async function declineFriendRequest(requesterId: string): Promise<void> {
   });
   if (error) throw error;
 }
+
+/** Removes an existing (accepted) friendship in both directions. */
+export async function removeFriend(friendId: string): Promise<void> {
+  const { error } = await supabase.rpc('remove_friend', { p_friend_id: friendId });
+  if (error) throw error;
+}
