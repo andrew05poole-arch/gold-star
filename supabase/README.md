@@ -7,7 +7,7 @@ algorithms documented in `../docs/PRD.md` §13.
 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. In the SQL Editor, run every file in `migrations/` in numeric order
-   (`0001_init.sql` through `0007_create_challenge.sql` as of this writing —
+   (`0001_init.sql` through `0012_activity_comments.sql` as of this writing —
    run `ls migrations/` to confirm you have the latest) — creates tables,
    triggers, RPCs, RLS policies. Then optionally run `seed.sql` (adds two
    joinable challenge presets matching the prototype).
@@ -25,7 +25,7 @@ algorithms documented in `../docs/PRD.md` §13.
 
 | Table | Purpose |
 |---|---|
-| `profiles` | 1:1 with `auth.users`; display name, daily goal, stride/height for normalization |
+| `profiles` | 1:1 with `auth.users`; display name, daily goal, stride/height for normalization, optional self-reported city/region/country (`0009_profile_location.sql`) for future geo leaderboards |
 | `step_records` | One row per user per day; `raw_steps` in, `normalized_steps` computed by trigger (§13.2) |
 | `streaks` | Current/longest streak + freezes remaining; recomputed by trigger on every step-record write (§13.5) |
 | `friendships` | Directional rows; `pending` until the recipient accepts via `respond_to_friend_request`, then mirrored as `accepted` in both directions |
@@ -91,6 +91,92 @@ Custom challenges (`0007_create_challenge.sql`):
   insert). Progress/status for the new challenge are picked up automatically
   by the existing `0002`/`0005` triggers and view — no extra wiring needed.
 
+Activity feed foundation (issue #33, `0008_activity_events.sql`) — schema
+and auto-logging only; reactions/comments/UI are separate follow-up issues:
+
+- `activity_events` — `user_id`, `event_type` (`streak_milestone` |
+  `challenge_completed` | `challenge_joined` | `friend_added`), `payload`
+  jsonb, `created_at`. RLS only allows a user to select their own rows
+  directly; friend-scoped reads go through the RPC below (same trade-off as
+  `get_leaderboard`).
+- `get_friend_activity_feed(p_user_id)` — caller + accepted friends' events,
+  newest first, capped at 100 rows.
+- Auto-logging triggers insert rows with no client involvement:
+  - `trg_after_streak_update_log_milestone` on `streaks` — fires a
+    `streak_milestone` event the moment `current_length` crosses 3, 7, or 30
+    (not on every day past the threshold).
+  - `trg_after_challenge_participant_progress_log_completion` on
+    `challenge_participants` — fires a `challenge_completed` event when a
+    `progress` write causes the `challenge_participant_status` (0005) logic
+    to newly evaluate to `completed`. Since that status is otherwise only
+    computed at read time off wall-clock date, a participant who already met
+    their goal but stops syncing steps before the window closes won't get an
+    event — an accepted gap for a feed, not a source of truth.
+  - `trg_after_friendship_write_log_friend_added` on `friendships` — fires a
+    `friend_added` event for a row's `user_id` whenever that row becomes
+    `accepted` (covers both the flipped original row and the mirrored
+    reverse row `respond_to_friend_request`, 0004, writes on acceptance).
+
+Geo leaderboards (issue #31, `0010_geo_leaderboards.sql`) — public boards
+alongside the friends-only `get_leaderboard`, same ranking pattern (this
+ISO week's `normalized_score`, `previous_rank` from last week over the same
+scope), each capped at `limit 100` since the candidate set isn't naturally
+small like a friend list:
+
+- `get_city_leaderboard(p_city)` — all users whose `profiles.city` matches
+  case-insensitively.
+- `get_country_leaderboard(p_country)` — same, scoped to `profiles.country`.
+- `get_global_leaderboard()` — same, no scope filter (all users).
+
+All three are `security definer` and viewable by any authenticated user
+regardless of friendship — a public leaderboard, not a friend-scoped one —
+but expose nothing beyond what `get_leaderboard` already surfaces across
+users (`display_name`, `avatar_color`, `normalized_score`); city/country
+themselves are read from `profiles`, already selectable by any
+authenticated user (0001_init.sql).
+
+Activity reactions / likes (issue #34, `0011_activity_reactions.sql`):
+
+- `activity_reactions` — one row per `(event_id, user_id)` (primary key,
+  so at most one "like" per user per event; no reaction-type enum). RLS
+  only lets a user select/insert/delete their own reaction rows directly —
+  same trade-off as `activity_events` (0008): no broad "friends can see
+  reactions on events they can see" policy, since that would duplicate the
+  friend-lookup logic `get_friend_activity_feed` already encapsulates.
+- `toggle_activity_reaction(p_event_id)` — security-definer RPC that
+  re-derives "can the caller see this event" using the exact same
+  caller-or-accepted-friend rule as `get_friend_activity_feed`, then
+  inserts the caller's reaction if absent or deletes it if present.
+  Returns the resulting `(reacted, reaction_count)` for that event. Raises
+  if the event doesn't exist or isn't visible to the caller.
+- `get_activity_reaction_counts(p_event_ids)` — security-definer RPC
+  returning `(event_id, reaction_count, reacted_by_me)` for a batch of
+  event ids, so the Feed UI (issue #36) can render counts for a page of
+  events in one call instead of one query per row. Does not re-check event
+  visibility per id (only meaningful for ids the caller already got from
+  `get_friend_activity_feed`); events with zero reactions are simply
+  omitted from the result.
+
+Activity comments (issue #35, `0012_activity_comments.sql`):
+
+- `activity_comments` — `event_id` (fk to `activity_events`), `user_id`,
+  `body` (capped at 280 chars), `created_at`. Same trade-off as
+  `activity_events` itself: RLS only allows a user to select/insert/delete
+  their own comment rows directly; friend-scoped reads go through the RPCs
+  below rather than a broad "friends can select" policy.
+- `can_view_activity_event(p_event_id)` — shared `security definer` helper;
+  true iff the event belongs to the caller or an accepted friend. Delegates
+  to `get_friend_activity_feed` instead of re-deriving the friend-set CTE,
+  so the two visibility rules can't drift apart.
+- `add_activity_comment(p_event_id, p_body)` — inserts a comment after
+  checking `can_view_activity_event` and the 280-char limit; returns the new
+  row.
+- `get_activity_comments(p_event_id)` — all comments for an event the caller
+  can see, oldest first, with `display_name`/`avatar_color` joined in.
+- `delete_activity_comment(p_comment_id)` — deletes a comment the caller
+  owns (a thin `security invoker` wrapper over the RLS delete policy, mainly
+  so a missing/foreign row raises a clear error instead of a silent no-op).
+
 ## Testing / verifying migrations
 
 There is no automated test harness for the SQL in this repo (no CI step
@@ -108,7 +194,7 @@ migration:
 ## Migration convention
 
 New schema changes go in a new numbered file under `migrations/` (e.g.
-`0008_*.sql`) — never edit an already-shipped migration (`0001_init.sql`,
+`0010_*.sql`) — never edit an already-shipped migration (`0001_init.sql`,
 `0002_challenge_progress.sql`, ...) in place, so migration history stays
 replayable against a project that already ran the earlier files.
 

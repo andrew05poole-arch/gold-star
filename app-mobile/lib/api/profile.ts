@@ -13,6 +13,9 @@ interface ProfileRow {
   height_cm: number | null;
   stride_length_cm: number | null;
   referral_code: string;
+  city: string | null;
+  region: string | null;
+  country: string | null;
 }
 
 function toUser(row: ProfileRow): User {
@@ -24,6 +27,9 @@ function toUser(row: ProfileRow): User {
     heightCm: row.height_cm ?? undefined,
     strideLengthCm: row.stride_length_cm ?? undefined,
     referralCode: row.referral_code,
+    city: row.city ?? undefined,
+    region: row.region ?? undefined,
+    country: row.country ?? undefined,
   };
 }
 
@@ -43,6 +49,25 @@ export async function createMyProfile(displayName: string, heightCm?: number): P
   const { data, error } = await supabase
     .from('profiles')
     .insert({ id: auth.user.id, display_name: displayName, height_cm: heightCm })
+    .select()
+    .single();
+  if (error) throw error;
+  return toUser(data as ProfileRow);
+}
+
+/** Updates the signed-in user's self-reported location. Blank fields are stored as null. */
+export async function updateLocation(city?: string, region?: string, country?: string): Promise<User> {
+  const { data: auth, error: authError } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  if (!auth.user) throw new Error('Not signed in');
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({
+      city: city?.trim() || null,
+      region: region?.trim() || null,
+      country: country?.trim() || null,
+    })
+    .eq('id', auth.user.id)
     .select()
     .single();
   if (error) throw error;

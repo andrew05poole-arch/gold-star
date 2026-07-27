@@ -15,6 +15,9 @@ export interface User {
   heightCm?: number;
   strideLengthCm?: number;
   referralCode?: string;
+  city?: string;
+  region?: string;
+  country?: string;
 }
 
 /** A single day's step data (raw + normalized). */
@@ -85,4 +88,31 @@ export interface StreakDay {
   label: string; // e.g. "M", "T"
   qualified: boolean;
   isToday: boolean;
+}
+
+/** Mirrors the `event_type` check constraint on `activity_events` (0008_activity_events.sql). */
+export type ActivityEventType = 'streak_milestone' | 'challenge_completed' | 'challenge_joined' | 'friend_added';
+
+/** A row from `get_friend_activity_feed` (0008_activity_events.sql), plus reaction state layered on client-side. */
+export interface ActivityEvent {
+  id: string;
+  userId: string;
+  displayName: string;
+  avatarColor: string;
+  eventType: ActivityEventType;
+  payload: Record<string, unknown>;
+  createdAt: string;
+  reactionCount: number;
+  reactedByMe: boolean;
+}
+
+/** A row from `get_activity_comments` (0012_activity_comments.sql). */
+export interface ActivityComment {
+  id: string;
+  eventId: string;
+  userId: string;
+  displayName: string;
+  avatarColor: string;
+  body: string;
+  createdAt: string;
 }
