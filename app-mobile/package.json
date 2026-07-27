@@ -7,7 +7,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "jest"
   },
   "private": true,
   "dependencies": {
@@ -25,9 +26,19 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-native": "^0.85.3",
+    "react-native-health": "^1.19.0",
+    "react-native-health-connect": "^3.5.3",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "^4.25.2",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-web": "^0.21.2"
+  },
+  "devDependencies": {
+    "@testing-library/react-native": "^14.0.1",
+    "@types/jest": "^29.5.14",
+    "jest-expo": "^56.0.5"
+  },
+  "jest": {
+    "preset": "jest-expo"
   }
 }

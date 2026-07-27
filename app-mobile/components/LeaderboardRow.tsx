@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { colors, fontFamily, radii, spacing } from '@/lib/theme';
 import type { Friend } from '@/lib/types';
 import { formatSteps } from '@/lib/format';
@@ -9,11 +9,17 @@ import { Text } from './Text';
 interface Props {
   friend: Friend;
   isCurrentUser?: boolean;
+  /** Long-press handler (e.g. offer to remove the friend). Omitted for the current user's own row. */
+  onLongPress?: () => void;
 }
 
-export function LeaderboardRow({ friend, isCurrentUser }: Props) {
+export function LeaderboardRow({ friend, isCurrentUser, onLongPress }: Props) {
   return (
-    <View style={[styles.row, isCurrentUser && styles.highlight]}>
+    <Pressable
+      style={[styles.row, isCurrentUser && styles.highlight]}
+      onLongPress={isCurrentUser ? undefined : onLongPress}
+      delayLongPress={400}
+    >
       <Text style={styles.rank}>{friend.rank}</Text>
       <Avatar name={friend.displayName} color={friend.avatarColor} size={40} />
       <View style={styles.middle}>
@@ -21,7 +27,7 @@ export function LeaderboardRow({ friend, isCurrentUser }: Props) {
         <Text style={styles.steps}>{formatSteps(friend.weeklySteps)} steps</Text>
       </View>
       <RankChangeArrow rank={friend.rank} previousRank={friend.previousRank} />
-    </View>
+    </Pressable>
   );
 }
 

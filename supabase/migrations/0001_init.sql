@@ -306,7 +306,7 @@ stable
 security definer
 set search_path = public
 as $$
-  with trailing as (
+  with trailing_avg as (
     select avg(normalized_steps) as avg_steps
     from public.step_records
     where user_id = p_user_id
@@ -326,7 +326,7 @@ as $$
     3000, -- MIN_TARGET
     least(
       20000, -- MAX_TARGET
-      round(coalesce((select avg_steps from trailing), 6000) * coalesce((select factor from band), 1.05))
+      round(coalesce((select avg_steps from trailing_avg), 6000) * coalesce((select factor from band), 1.05))
     )
   );
 $$;

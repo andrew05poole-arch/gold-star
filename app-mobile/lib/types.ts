@@ -14,6 +14,7 @@ export interface User {
   dailyGoal: number;
   heightCm?: number;
   strideLengthCm?: number;
+  referralCode?: string;
 }
 
 /** A single day's step data (raw + normalized). */
@@ -40,6 +41,14 @@ export interface Friend {
   previousRank: number;
 }
 
+/** An incoming, not-yet-accepted friend request. */
+export interface PendingFriendRequest {
+  requesterId: string;
+  displayName: string;
+  avatarColor: string;
+  createdAt: string;
+}
+
 export interface RivalStatus {
   name: string;
   difficultyBand: 'chill' | 'even' | 'pushy';
@@ -49,11 +58,23 @@ export interface RivalStatus {
 
 export type ChallengeVariant = 'active' | 'joinable';
 
+/** Mirrors `challenges.goal_type` in supabase/migrations/0001_init.sql. */
+export type ChallengeGoalType = 'stepsPerDay' | 'totalSteps' | 'daysStreak';
+
+/**
+ * Lifecycle state of a joined challenge, derived from the participant's own
+ * [joined_at, joined_at + duration_days - 1] window vs. today, and whether
+ * their progress met the goal once that window closed. Undefined when the
+ * challenge hasn't been joined (variant === 'joinable').
+ */
+export type ChallengeStatus = 'active' | 'completed' | 'expired';
+
 export interface Challenge {
   id: string;
   title: string;
   subtitle: string;
   variant: ChallengeVariant;
+  status?: ChallengeStatus; // set when variant === 'active'
   progress: number; // 0..1, used when variant === 'active'
   participants: number;
 }

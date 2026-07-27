@@ -12,6 +12,7 @@ interface ProfileRow {
   daily_goal: number;
   height_cm: number | null;
   stride_length_cm: number | null;
+  referral_code: string;
 }
 
 function toUser(row: ProfileRow): User {
@@ -22,6 +23,7 @@ function toUser(row: ProfileRow): User {
     dailyGoal: row.daily_goal,
     heightCm: row.height_cm ?? undefined,
     strideLengthCm: row.stride_length_cm ?? undefined,
+    referralCode: row.referral_code,
   };
 }
 

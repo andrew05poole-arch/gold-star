@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import type { Challenge } from '../types';
+import type { Challenge, ChallengeGoalType, ChallengeStatus } from '../types';
 
 interface ChallengeRow {
   id: string;
@@ -14,17 +14,24 @@ interface ParticipantRow {
   progress: number;
 }
 
+// Mirrors public.challenge_participant_status (0005_challenge_completion.sql),
+// which derives `status` from the participant's own window vs. today rather
+// than a value stored on challenge_participants, so it can never go stale.
+interface ParticipantStatusRow extends ParticipantRow {
+  status: ChallengeStatus;
+}
+
 export async function getChallenges(): Promise<Challenge[]> {
   const { data: auth } = await supabase.auth.getUser();
   const [{ data: challengeRows, error: cErr }, { data: participantRows, error: pErr }] = await Promise.all([
     supabase.from('challenges').select('id, title, subtitle, goal_value'),
-    supabase.from('challenge_participants').select('challenge_id, user_id, progress'),
+    supabase.from('challenge_participant_status').select('challenge_id, user_id, progress, status'),
   ]);
   if (cErr) throw cErr;
   if (pErr) throw pErr;
 
-  const byChallenge = new Map<string, ParticipantRow[]>();
-  for (const row of (participantRows as ParticipantRow[] | null) ?? []) {
+  const byChallenge = new Map<string, ParticipantStatusRow[]>();
+  for (const row of (participantRows as ParticipantStatusRow[] | null) ?? []) {
     const list = byChallenge.get(row.challenge_id) ?? [];
     list.push(row);
     byChallenge.set(row.challenge_id, list);
@@ -38,6 +45,7 @@ export async function getChallenges(): Promise<Challenge[]> {
       title: row.title,
       subtitle: row.subtitle ?? '',
       variant: mine ? 'active' : 'joinable',
+      status: mine?.status,
       progress: mine ? Math.min(1, mine.progress / row.goal_value) : 0,
       participants: participants.length,
     };
@@ -51,4 +59,24 @@ export async function joinChallenge(challengeId: string): Promise<void> {
     .from('challenge_participants')
     .upsert({ challenge_id: challengeId, user_id: auth.user.id, progress: 0 }, { onConflict: 'challenge_id,user_id' });
   if (error) throw error;
+}
+
+// Creates a new challenge and joins the caller as its first participant, in
+// a single atomic call. See supabase/migrations/0007_create_challenge.sql —
+// `challenges` has no client insert policy, so this is done via a
+// `security definer` RPC rather than a two-step client insert.
+export async function createChallenge(
+  title: string,
+  goalType: ChallengeGoalType,
+  goalValue: number,
+  durationDays: number,
+): Promise<string> {
+  const { data, error } = await supabase.rpc('create_challenge', {
+    p_title: title,
+    p_goal_type: goalType,
+    p_goal_value: goalValue,
+    p_duration_days: durationDays,
+  });
+  if (error) throw error;
+  return data as string;
 }

@@ -1,38 +1,108 @@
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fontFamily, radii, spacing } from '@/lib/theme';
+import { colors, fontFamily, fontSize, radii, spacing } from '@/lib/theme';
 import { useStepData } from '@/lib/useStepData';
 import { useAuth } from '@/lib/useAuth';
 import { createMyProfile } from '@/lib/api/profile';
+import { addFriendByReferralCode } from '@/lib/api/leaderboard';
 import { Text } from '@/components/Text';
 import { PrimaryButton } from '@/components/PrimaryButton';
+
+type Step = 'intro' | 'height';
 
 export default function Onboarding() {
   const router = useRouter();
   const { requestPermission } = useStepData();
   const { session } = useAuth();
+  const [step, setStep] = useState<Step>('intro');
+  const [heightCm, setHeightCm] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pendingGrant, setPendingGrant] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
 
-  async function finishOnboarding() {
+  async function finishOnboarding(heightValue?: number) {
     const fallbackName = session?.user.email?.split('@')[0] ?? 'Player';
-    await createMyProfile(fallbackName);
+    await createMyProfile(fallbackName, heightValue);
+    const code = inviteCode.trim();
+    if (code) {
+      // Best-effort: an invalid/unknown code shouldn't block onboarding.
+      await addFriendByReferralCode(code).catch(() => {});
+    }
     router.replace('/(tabs)/home');
   }
 
-  async function handleGrant() {
+  function handleGrant() {
+    setPendingGrant(true);
+    setStep('height');
+  }
+
+  function handleSkipInvite() {
+    setPendingGrant(false);
+    setStep('height');
+  }
+
+  async function handleContinueFromHeight() {
     setLoading(true);
-    await requestPermission(); // stubbed -> 'granted'
-    await finishOnboarding();
+    const parsed = Number(heightCm);
+    const heightValue = heightCm.trim().length > 0 && Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+    if (pendingGrant) {
+      // Resolves via mockStepProvider ('granted') by default, or the real
+      // HealthKit/Health Connect permission prompt when
+      // USE_REAL_HEALTH_PROVIDER is enabled — see lib/useStepData.ts.
+      await requestPermission();
+    }
+    await finishOnboarding(heightValue);
     setLoading(false);
   }
 
-  async function handleSkipInvite() {
+  async function handleSkipHeight() {
     setLoading(true);
-    await finishOnboarding();
+    if (pendingGrant) {
+      await requestPermission();
+    }
+    await finishOnboarding(undefined);
     setLoading(false);
+  }
+
+  if (step === 'height') {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.hero}>
+          <View style={styles.iconCircle}>
+            <Ionicons name="body" size={64} color="#FFFFFF" />
+          </View>
+          <Text style={styles.title}>One quick thing</Text>
+          <Text style={styles.tagline}>Help us keep scoring fair for everyone.</Text>
+        </View>
+
+        <View style={styles.body}>
+          <Text style={styles.pitch}>
+            Your stride length affects how far your steps actually take you. Share your height (in cm) so we
+            can normalize your steps against everyone else's — or skip and we'll use an average stride.
+          </Text>
+          <View style={styles.form}>
+            <Text variant="label">HEIGHT (CM)</Text>
+            <TextInput
+              value={heightCm}
+              onChangeText={setHeightCm}
+              placeholder="e.g. 175"
+              placeholderTextColor={colors.textSecondary}
+              keyboardType="number-pad"
+              style={styles.input}
+            />
+          </View>
+        </View>
+
+        <View style={styles.actions}>
+          <PrimaryButton label="Continue" onPress={handleContinueFromHeight} loading={loading} />
+          <PrimaryButton label="Skip for now" variant="ghost" onPress={handleSkipHeight} disabled={loading} />
+          <Text style={styles.privacy}>You can always add this later from your profile.</Text>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -57,7 +127,17 @@ export default function Onboarding() {
       </View>
 
       <View style={styles.actions}>
-        <PrimaryButton label="Connect my steps" onPress={handleGrant} loading={loading} />
+        <Text style={styles.inviteLabel}>Got an invite code?</Text>
+        <TextInput
+          value={inviteCode}
+          onChangeText={setInviteCode}
+          placeholder="Optional — e.g. AB3XQ9KP"
+          placeholderTextColor={colors.textSecondary}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          style={styles.inviteInput}
+        />
+        <PrimaryButton label="Connect my steps" onPress={handleGrant} />
         <PrimaryButton label="I'll invite friends later" variant="ghost" onPress={handleSkipInvite} />
         <Text style={styles.privacy}>We only read step counts. You're always in control.</Text>
       </View>
@@ -103,6 +183,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   bulletText: { fontFamily: fontFamily.bold, fontSize: 16, color: colors.textPrimary },
+  form: { gap: spacing.sm },
+  input: {
+    height: 56,
+    borderRadius: radii.md,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    fontFamily: fontFamily.semibold,
+    fontSize: fontSize.md,
+    color: colors.textPrimary,
+  },
   actions: { gap: spacing.sm },
+  inviteLabel: { fontFamily: fontFamily.bold, fontSize: 13, color: colors.textSecondary },
+  inviteInput: {
+    height: 48,
+    width: '100%',
+    borderRadius: radii.md,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    fontFamily: fontFamily.semibold,
+    fontSize: 14,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
   privacy: { fontFamily: fontFamily.semibold, fontSize: 12, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xs },
 });
