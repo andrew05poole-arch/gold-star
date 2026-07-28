@@ -11,6 +11,8 @@ export interface User {
   id: string;
   displayName: string;
   avatarColor: string;
+  avatarUrl?: string;
+  bio?: string;
   dailyGoal: number;
   heightCm?: number;
   strideLengthCm?: number;
