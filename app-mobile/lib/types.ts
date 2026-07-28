@@ -226,3 +226,29 @@ export interface HistoricalImportResult {
   endDate: string;
   summary?: HistoricalStepSummary;
 }
+
+// ---------------------------------------------------------------------------
+// Public profile pages. See lib/api/profile.ts's getPublicProfile and
+// app/profile/[userId].tsx. League/leaderboard placement is deliberately
+// not included — see 0018_public_profile_streaks.sql's header comment.
+// ---------------------------------------------------------------------------
+
+export interface PublicChallengeHistoryItem {
+  title: string;
+  goalType: ChallengeGoalType;
+  goalValue: number;
+  progress: number;
+  status: ChallengeStatus;
+}
+
+export interface PublicProfile {
+  id: string;
+  displayName: string;
+  avatarColor: string;
+  avatarUrl?: string;
+  bio?: string;
+  memberSince: string; // profiles.created_at
+  currentStreak: number;
+  longestStreak: number;
+  challengeHistory: PublicChallengeHistoryItem[]; // most recently joined first
+}
