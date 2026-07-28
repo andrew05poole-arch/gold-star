@@ -17,6 +17,7 @@ const GOAL_TYPE_LABEL: Record<ChallengeGoalType, string> = {
 };
 
 const STATUS_COLOR: Record<ChallengeStatus, string> = {
+  upcoming: colors.rivalAccent,
   active: colors.primary,
   completed: colors.secondary,
   expired: colors.textSecondary,
@@ -187,7 +188,9 @@ export default function ChallengeDetailScreen() {
                   </View>
                   <View style={styles.memberInfo}>
                     <Text style={styles.memberName}>{m.isMe ? `${m.displayName} (you)` : m.displayName}</Text>
-                    <Text variant="caption">Ends {m.windowEnd}</Text>
+                    <Text variant="caption">
+                      {m.status === 'upcoming' ? `Starts ${m.windowStart}` : `Ends ${m.windowEnd}`}
+                    </Text>
                   </View>
                   <View style={styles.memberProgress}>
                     <Text style={[styles.memberProgressValue, { color: STATUS_COLOR[m.status] }]}>

@@ -8,3 +8,16 @@ where not exists (select 1 from public.challenges where title = 'Weekend Warrior
 insert into public.challenges (title, subtitle, goal_type, goal_value, duration_days)
 select 'Early Bird', '2k steps before 9am, 5 days', 'stepsPerDay', 2000, 5
 where not exists (select 1 from public.challenges where title = 'Early Bird');
+
+-- Since 0015_scheduled_challenges.sql, a challenge stops being joinable once
+-- its window closes (current_date > starts_at + duration_days - 1) — these
+-- two presets have short 2/5-day durations, so without this they'd go
+-- permanently stale within days of being seeded. Re-running this file bumps
+-- a lapsed preset's starts_at back to today, keeping it usable as an
+-- always-fresh dev fixture. (If someone already joined a preset before it
+-- went stale, this also pushes their own greatest(joined_at, starts_at)
+-- window later — an accepted tradeoff for dev/seed data, not real users.)
+update public.challenges
+  set starts_at = current_date
+  where title in ('Weekend Warrior', 'Early Bird')
+    and current_date > (starts_at + duration_days - 1);

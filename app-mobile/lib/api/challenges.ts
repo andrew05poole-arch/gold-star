@@ -6,6 +6,7 @@ interface ChallengeRow {
   title: string;
   subtitle: string | null;
   goal_value: number;
+  starts_at: string;
 }
 
 interface ChallengeDetailRow {
@@ -28,6 +29,7 @@ interface FullParticipantStatusRow {
   user_id: string;
   progress: number;
   joined_at: string;
+  window_start: string;
   window_end: string;
   status: ChallengeStatus;
 }
@@ -54,7 +56,7 @@ interface ParticipantStatusRow extends ParticipantRow {
 export async function getChallenges(): Promise<Challenge[]> {
   const { data: auth } = await supabase.auth.getUser();
   const [{ data: challengeRows, error: cErr }, { data: participantRows, error: pErr }] = await Promise.all([
-    supabase.from('challenges').select('id, title, subtitle, goal_value'),
+    supabase.from('challenges').select('id, title, subtitle, goal_value, starts_at'),
     supabase.from('challenge_participant_status').select('challenge_id, user_id, progress, status'),
   ]);
   if (cErr) throw cErr;
@@ -78,6 +80,7 @@ export async function getChallenges(): Promise<Challenge[]> {
       status: mine?.status,
       progress: mine ? Math.min(1, mine.progress / row.goal_value) : 0,
       participants: participants.length,
+      startsAt: row.starts_at,
     };
   });
 }
@@ -95,17 +98,25 @@ export async function joinChallenge(challengeId: string): Promise<void> {
 // a single atomic call. See supabase/migrations/0007_create_challenge.sql —
 // `challenges` has no client insert policy, so this is done via a
 // `security definer` RPC rather than a two-step client insert.
+//
+// `startsAt` (local date key, e.g. "2026-08-01") schedules the challenge's
+// shared window start — see 0015_scheduled_challenges.sql. Omitted entirely
+// (not even sent as null) when not provided, so the SQL-side
+// `default current_date` applies rather than computing "today" in JS and
+// risking a client/server clock mismatch.
 export async function createChallenge(
   title: string,
   goalType: ChallengeGoalType,
   goalValue: number,
   durationDays: number,
+  startsAt?: string,
 ): Promise<string> {
   const { data, error } = await supabase.rpc('create_challenge', {
     p_title: title,
     p_goal_type: goalType,
     p_goal_value: goalValue,
     p_duration_days: durationDays,
+    ...(startsAt ? { p_starts_at: startsAt } : {}),
   });
   if (error) throw error;
   return data as string;
@@ -150,6 +161,7 @@ export async function getChallengeDetail(challengeId: string): Promise<Challenge
         progress: r.progress,
         status: r.status,
         joinedAt: r.joined_at,
+        windowStart: r.window_start,
         windowEnd: r.window_end,
         isMe: auth.user?.id === r.user_id,
       };
