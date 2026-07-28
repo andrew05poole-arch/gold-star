@@ -32,13 +32,35 @@
  *      land in the generated native project (`npx expo prebuild --clean`).
  */
 import { Platform } from 'react-native';
-import type { PermissionStatus, StepDay, StepSnapshot } from './types';
+import type { HistoricalStepQuery, PermissionStatus, StepDay, StepSnapshot } from './types';
 import type { StepDataProvider } from './useStepData';
 import { normalizeSteps } from './normalize';
 import { currentUser } from './mockData';
+import { buildInclusiveLocalDateRange, localDateKey } from './dateRange';
 
 const REFERENCE_STRIDE_CM = 71;
 const HISTORY_DAYS = 7;
+
+// Historical import: see lib/historicalStepImport.ts / lib/dateRange.ts.
+// Clamped defensively even though the onboarding UI only ever offers up to
+// 90 days, and batched so a 90-day import doesn't fire 90 concurrent native
+// HealthKit/Health Connect calls at once.
+const MAX_HISTORICAL_DAYS = 90;
+const HISTORICAL_FETCH_BATCH_SIZE = 14;
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+}
+
+/** Local-calendar-day list for `query`, clamped to the most recent MAX_HISTORICAL_DAYS if a caller asks for more. */
+function clampHistoricalRange(query: HistoricalStepQuery): Date[] {
+  const days = buildInclusiveLocalDateRange(query.startDate, query.endDate);
+  return days.length <= MAX_HISTORICAL_DAYS ? days : days.slice(days.length - MAX_HISTORICAL_DAYS);
+}
 
 function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -130,6 +152,35 @@ async function getHealthKitSnapshot(): Promise<StepSnapshot> {
   };
 }
 
+/**
+ * Historical import over an arbitrary range (7/30/90 days), reusing the same
+ * per-day `getStepCount` call as `getHealthKitSnapshot`'s fixed 7-day window
+ * — HealthKit already returns each day's request pre-aggregated by the OS
+ * (it sums all sources/devices for that day into one `value`), so this is
+ * not a naive re-summation of raw samples. Fetched in small batches rather
+ * than one giant `Promise.all` so a 90-day import doesn't fire 90 concurrent
+ * native-bridge calls at once. A day HealthKit has no data for (or that
+ * errors) resolves to 0 raw steps here, same as the existing snapshot path —
+ * the native callback doesn't distinguish "queried and genuinely zero" from
+ * "no samples existed to query" in the shape this library exposes today.
+ */
+async function getHealthKitHistoricalDays(query: HistoricalStepQuery): Promise<StepDay[]> {
+  const AppleHealthKit = (await import('react-native-health')).default;
+  const days = clampHistoricalRange(query);
+  const records: StepDay[] = [];
+  for (const batch of chunk(days, HISTORICAL_FETCH_BATCH_SIZE)) {
+    const rawStepsByDay = await Promise.all(batch.map((d) => getStepsForDay(AppleHealthKit, d)));
+    batch.forEach((d, i) => {
+      records.push({
+        date: localDateKey(d),
+        rawSteps: rawStepsByDay[i],
+        normalizedSteps: normalizeSteps(rawStepsByDay[i], currentUser, REFERENCE_STRIDE_CM),
+      });
+    });
+  }
+  return records;
+}
+
 // ---------------------------------------------------------------------------
 // Android: Health Connect via react-native-health-connect
 // ---------------------------------------------------------------------------
@@ -146,6 +197,19 @@ async function requestHealthConnectPermission(): Promise<PermissionStatus> {
   return hasStepsRead ? 'granted' : 'denied';
 }
 
+function getStepsForDayHealthConnect(
+  HealthConnect: typeof import('react-native-health-connect'),
+  day: Date,
+): Promise<number> {
+  const start = startOfDay(day);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 1);
+  return HealthConnect.aggregateRecord({
+    recordType: 'Steps',
+    timeRangeFilter: { operator: 'between', startTime: start.toISOString(), endTime: end.toISOString() },
+  }).then((result) => Math.round((result as any)?.COUNT_TOTAL ?? 0));
+}
+
 async function getHealthConnectSnapshot(): Promise<StepSnapshot> {
   const HealthConnect = await import('react-native-health-connect');
   const today = startOfDay(new Date());
@@ -157,22 +221,7 @@ async function getHealthConnectSnapshot(): Promise<StepSnapshot> {
     days.push(d);
   }
 
-  const rawStepsByDay = await Promise.all(
-    days.map(async (d) => {
-      const start = startOfDay(d);
-      const end = new Date(start);
-      end.setDate(start.getDate() + 1);
-      const result = await HealthConnect.aggregateRecord({
-        recordType: 'Steps',
-        timeRangeFilter: {
-          operator: 'between',
-          startTime: start.toISOString(),
-          endTime: end.toISOString(),
-        },
-      });
-      return Math.round((result as any)?.COUNT_TOTAL ?? 0);
-    }),
-  );
+  const rawStepsByDay = await Promise.all(days.map((d) => getStepsForDayHealthConnect(HealthConnect, d)));
 
   const weeklyHistory: StepDay[] = days.map((d, i) => ({
     date: isoDate(d),
@@ -189,6 +238,24 @@ async function getHealthConnectSnapshot(): Promise<StepSnapshot> {
     source: 'googlefit',
     weeklyHistory,
   };
+}
+
+/** Historical import counterpart to getHealthKitHistoricalDays — see its doc comment for the batching/zero-vs-missing rationale, which applies identically here. */
+async function getHealthConnectHistoricalDays(query: HistoricalStepQuery): Promise<StepDay[]> {
+  const HealthConnect = await import('react-native-health-connect');
+  const days = clampHistoricalRange(query);
+  const records: StepDay[] = [];
+  for (const batch of chunk(days, HISTORICAL_FETCH_BATCH_SIZE)) {
+    const rawStepsByDay = await Promise.all(batch.map((d) => getStepsForDayHealthConnect(HealthConnect, d)));
+    batch.forEach((d, i) => {
+      records.push({
+        date: localDateKey(d),
+        rawSteps: rawStepsByDay[i],
+        normalizedSteps: normalizeSteps(rawStepsByDay[i], currentUser, REFERENCE_STRIDE_CM),
+      });
+    });
+  }
+  return records;
 }
 
 // ---------------------------------------------------------------------------
@@ -221,5 +288,17 @@ export const healthStepProvider: StepDataProvider = {
       source: Platform.OS === 'ios' ? 'healthkit' : 'googlefit',
       weeklyHistory: [],
     };
+  },
+  async getHistoricalDailySteps(query) {
+    try {
+      if (Platform.OS === 'ios') return await getHealthKitHistoricalDays(query);
+      if (Platform.OS === 'android') return await getHealthConnectHistoricalDays(query);
+    } catch {
+      // Native module isn't linked, or a query failed outright — fail closed
+      // to an empty history rather than throwing out of onboarding; the
+      // import service (lib/historicalStepImport.ts) treats an empty result
+      // as its 'no-data' status, which onboarding already handles gracefully.
+    }
+    return [];
   },
 };

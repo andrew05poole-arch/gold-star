@@ -60,6 +60,54 @@ was built in has no live Supabase project or physical device to test against.
    challenge and watching its progress bar move as you log steps, creating a
    custom challenge, adjusting the rival difficulty band, removing a friend.
 
+### Historical step import (onboarding) — verification status
+
+New users who connect a health provider during onboarding can bulk-import
+7/30/90 days of recent step history (`lib/historicalStepImport.ts`), see an
+immediate movement summary, and get a suggested starter goal. Being explicit
+about what's actually been verified, since none of it can be exercised in
+this sandbox (no live Supabase project, no device):
+
+- **Code complete**: provider interface (`StepDataProvider.getHistoricalDailySteps`),
+  both real-provider implementations (`lib/healthStepProvider.ts`), the mock
+  provider's deterministic historical generator, the import service, the
+  summary/goal/movement-profile calculations, the bulk-upsert API, the
+  onboarding UI (import period picker + results screen), and migration
+  `0013_historical_step_import.sql`.
+- **Unit tested** (`npm test`, no native/DB needed): `lib/__tests__/dateRange.test.ts`,
+  `lib/__tests__/stepHistorySummary.test.ts` (averages, week-over-week,
+  division-by-zero, sparse/missing-day handling, goal bounds, movement-profile
+  rules), `lib/__tests__/historicalStepImport.test.ts` (dedupe, invalid-record
+  skipping, idempotent re-import, provider/persistence failure handling) —
+  the latter mocks `@/lib/useStepData` and `@/lib/api/stepRecords` at the
+  module boundary, the same pattern `app/__tests__/index.test.tsx` already
+  uses for `lib/api/*.ts` helpers.
+- **Mock-provider tested**: NOT yet manually clicked through in this session
+  — `npx expo start` (web or Expo Go) with the default mock provider should
+  exercise the full onboarding → import → results flow end-to-end without
+  any native build, since `mockStepProvider.getHistoricalDailySteps` needs
+  no permissions. This is the next concrete step before trusting the UI
+  layer.
+- **NOT yet applied to the live Supabase project**: migration `0008` has not
+  been run — the import flow will fail at the persistence step
+  (`upsertHistoricalStepRecords`) with a missing-column error until it is.
+  See `../supabase/README.md`.
+- **NOT native-build tested / physical-device verified**: the real
+  `getHealthKitHistoricalDays` / `getHealthConnectHistoricalDays`
+  implementations extend the existing (also never device-verified, see
+  `lib/healthStepProvider.ts`'s own checklist) per-day HealthKit/Health
+  Connect calls to an arbitrary date range. No new native permission or
+  `app.json` config was added — historical import reuses the same "Steps"
+  read permission the live sensor already requests — but the actual
+  multi-day query behavior, batching timing (14 days per batch, see
+  `HISTORICAL_FETCH_BATCH_SIZE`), and whether 90 sequential HealthKit/Health
+  Connect calls perform acceptably has never been run on a device. Needs an
+  EAS development-client build to verify (`eas build --profile development`)
+  — see the checklist in `lib/healthStepProvider.ts` for the general
+  device-verification steps; repeat them with `USE_REAL_HEALTH_PROVIDER=true`
+  specifically for the onboarding import screen, on an account with more
+  than a few days of real Health history to exercise a non-trivial import.
+
 ## What's here
 
 Backed by a real **Supabase** (Postgres + Auth) backend — every screen below
