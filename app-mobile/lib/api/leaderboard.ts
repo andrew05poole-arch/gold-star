@@ -5,6 +5,7 @@ interface LeaderboardRow {
   user_id: string;
   display_name: string;
   avatar_color: string;
+  avatar_url: string | null;
   normalized_score: number;
   rank: number;
   previous_rank: number | null;
@@ -14,6 +15,7 @@ interface PendingFriendRequestRow {
   requester_id: string;
   display_name: string;
   avatar_color: string;
+  avatar_url: string | null;
   created_at: string;
 }
 
@@ -22,6 +24,7 @@ function mapLeaderboardRows(data: LeaderboardRow[] | null): Friend[] {
     id: row.user_id,
     displayName: row.display_name,
     avatarColor: row.avatar_color,
+    avatarUrl: row.avatar_url ?? undefined,
     weeklySteps: Math.round(row.normalized_score),
     rank: row.rank,
     previousRank: row.previous_rank ?? row.rank,
@@ -78,6 +81,7 @@ export async function getPendingFriendRequests(): Promise<PendingFriendRequest[]
     requesterId: row.requester_id,
     displayName: row.display_name,
     avatarColor: row.avatar_color,
+    avatarUrl: row.avatar_url ?? undefined,
     createdAt: row.created_at,
   }));
 }

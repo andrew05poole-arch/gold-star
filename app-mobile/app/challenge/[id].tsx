@@ -184,8 +184,7 @@ export default function ChallengeDetailScreen() {
               <Card key={m.userId} style={styles.memberCard}>
                 <View style={styles.memberRow}>
                   <Text style={styles.rank}>#{i + 1}</Text>
-                  {/* photoUrl wiring lands in PR 2 once ChallengeMember carries avatarUrl */}
-                  <Avatar name={m.displayName} color={m.avatarColor} size={36} />
+                  <Avatar name={m.displayName} color={m.avatarColor} photoUrl={m.avatarUrl} size={36} />
                   <View style={styles.memberInfo}>
                     <Text style={styles.memberName}>{m.isMe ? `${m.displayName} (you)` : m.displayName}</Text>
                     <Text variant="caption">

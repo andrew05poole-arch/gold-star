@@ -21,7 +21,7 @@ export function LeaderboardRow({ friend, isCurrentUser, onLongPress }: Props) {
       delayLongPress={400}
     >
       <Text style={styles.rank}>{friend.rank}</Text>
-      <Avatar name={friend.displayName} color={friend.avatarColor} size={40} />
+      <Avatar name={friend.displayName} color={friend.avatarColor} photoUrl={friend.avatarUrl} size={40} />
       <View style={styles.middle}>
         <Text style={styles.name}>{friend.displayName}</Text>
         <Text style={styles.steps}>{formatSteps(friend.weeklySteps)} steps</Text>
