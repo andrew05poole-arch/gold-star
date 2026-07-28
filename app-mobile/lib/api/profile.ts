@@ -3,7 +3,7 @@
  * source of truth for "has this user finished onboarding?" — see app/index.tsx.
  */
 import { supabase } from '../supabase';
-import type { User } from '../types';
+import type { ChallengeGoalType, ChallengeStatus, PublicChallengeHistoryItem, PublicProfile, User } from '../types';
 
 interface ProfileRow {
   id: string;
@@ -141,4 +141,99 @@ export async function uploadAvatar(localUri: string, contentType: string): Promi
   if (updateError) throw updateError;
 
   return avatarUrl;
+}
+
+interface PublicProfileRow {
+  id: string;
+  display_name: string;
+  avatar_color: string;
+  avatar_url: string | null;
+  bio: string | null;
+  created_at: string;
+}
+
+interface PublicStreakRow {
+  current_length: number;
+  longest_length: number;
+}
+
+interface PublicChallengeStatusRow {
+  challenge_id: string;
+  joined_at: string;
+  progress: number;
+  status: ChallengeStatus;
+}
+
+interface ChallengeTitleRow {
+  id: string;
+  title: string;
+  goal_type: ChallengeGoalType;
+  goal_value: number;
+}
+
+/**
+ * Another user's public profile: name/avatar/bio, streak, and challenge
+ * history — everything already readable by any authenticated user
+ * (`profiles`, `challenge_participant_status`) plus `streaks`, opened up in
+ * 0018_public_profile_streaks.sql. No RPC needed since none of this
+ * requires a security-definer computation, just plain reads under RLS —
+ * same reasoning `getChallenges`/`getChallengeDetail` already use.
+ */
+export async function getPublicProfile(userId: string): Promise<PublicProfile> {
+  const [{ data: profileRow, error: pErr }, { data: streakRow, error: sErr }, { data: statusRows, error: cErr }] =
+    await Promise.all([
+      supabase.from('profiles').select('id, display_name, avatar_color, avatar_url, bio, created_at').eq('id', userId).single(),
+      supabase.from('streaks').select('current_length, longest_length').eq('user_id', userId).maybeSingle(),
+      supabase
+        .from('challenge_participant_status')
+        .select('challenge_id, joined_at, progress, status')
+        .eq('user_id', userId),
+    ]);
+  if (pErr) throw pErr;
+  if (sErr) throw sErr;
+  if (cErr) throw cErr;
+
+  const statusRowsTyped = (statusRows as PublicChallengeStatusRow[] | null) ?? [];
+  const challengeIds = statusRowsTyped.map((r) => r.challenge_id);
+
+  let challengesById = new Map<string, ChallengeTitleRow>();
+  if (challengeIds.length > 0) {
+    const { data: challengeRows, error: chErr } = await supabase
+      .from('challenges')
+      .select('id, title, goal_type, goal_value')
+      .in('id', challengeIds);
+    if (chErr) throw chErr;
+    challengesById = new Map(((challengeRows as ChallengeTitleRow[] | null) ?? []).map((c) => [c.id, c]));
+  }
+
+  const challengeHistory: PublicChallengeHistoryItem[] = statusRowsTyped
+    .slice()
+    .sort((a, b) => (a.joined_at < b.joined_at ? 1 : a.joined_at > b.joined_at ? -1 : 0))
+    .map((r) => {
+      const c = challengesById.get(r.challenge_id);
+      if (!c) return null;
+      return {
+        title: c.title,
+        goalType: c.goal_type,
+        goalValue: c.goal_value,
+        progress: r.progress,
+        status: r.status,
+      };
+    })
+    .filter((item): item is PublicChallengeHistoryItem => item !== null);
+
+  const profile = profileRow as PublicProfileRow;
+  const streak = streakRow as PublicStreakRow | null;
+
+  return {
+    id: profile.id,
+    displayName: profile.display_name,
+    avatarColor: profile.avatar_color,
+    avatarUrl: profile.avatar_url ?? undefined,
+    bio: profile.bio ?? undefined,
+    memberSince: profile.created_at,
+    currentStreak: streak?.current_length ?? 0,
+    longestStreak: streak?.longest_length ?? 0,
+    challengeHistory,
+  };
 }

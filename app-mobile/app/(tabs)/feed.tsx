@@ -58,6 +58,8 @@ interface FeedItemProps {
 }
 
 function FeedItem({ event, isSelf, onToggleReaction }: FeedItemProps) {
+  const { session } = useAuth();
+  const myUserId = session?.user.id;
   const [expanded, setExpanded] = useState(false);
   const [comments, setComments] = useState<ActivityComment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
@@ -100,7 +102,12 @@ function FeedItem({ event, isSelf, onToggleReaction }: FeedItemProps) {
 
   return (
     <Card style={styles.card}>
-      <View style={styles.row}>
+      <TouchableOpacity
+        style={styles.row}
+        activeOpacity={isSelf ? 1 : 0.7}
+        disabled={isSelf}
+        onPress={() => router.push({ pathname: '/profile/[userId]', params: { userId: event.userId } })}
+      >
         <Avatar name={event.displayName} color={event.avatarColor} photoUrl={event.avatarUrl} size={40} />
         <View style={styles.middle}>
           <View style={styles.descriptionRow}>
@@ -109,7 +116,7 @@ function FeedItem({ event, isSelf, onToggleReaction }: FeedItemProps) {
           </View>
           <Text style={styles.timestamp}>{formatRelativeTime(event.createdAt)}</Text>
         </View>
-      </View>
+      </TouchableOpacity>
 
       <View style={styles.actions}>
         <TouchableOpacity
@@ -135,13 +142,19 @@ function FeedItem({ event, isSelf, onToggleReaction }: FeedItemProps) {
           {loadingComments && <ActivityIndicator color={colors.primary} />}
           {!loadingComments &&
             comments.map((comment) => (
-              <View key={comment.id} style={styles.commentRow}>
+              <TouchableOpacity
+                key={comment.id}
+                style={styles.commentRow}
+                activeOpacity={comment.userId === myUserId ? 1 : 0.7}
+                disabled={comment.userId === myUserId}
+                onPress={() => router.push({ pathname: '/profile/[userId]', params: { userId: comment.userId } })}
+              >
                 <Avatar name={comment.displayName} color={comment.avatarColor} photoUrl={comment.avatarUrl} size={28} />
                 <View style={styles.commentBody}>
                   <Text style={styles.commentAuthor}>{comment.displayName}</Text>
                   <Text style={styles.commentText}>{comment.body}</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           {!loadingComments && comments.length === 0 && (
             <Text style={styles.noComments}>No comments yet — be the first.</Text>

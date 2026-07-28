@@ -181,7 +181,11 @@ export default function ChallengeDetailScreen() {
             <Text variant="heading">Members ({detail.members.length})</Text>
             {detail.members.length === 0 && <Text variant="body">No one has joined yet.</Text>}
             {detail.members.map((m, i) => (
-              <Card key={m.userId} style={styles.memberCard}>
+              <Card
+                key={m.userId}
+                style={styles.memberCard}
+                onPress={m.isMe ? undefined : () => router.push({ pathname: '/profile/[userId]', params: { userId: m.userId } })}
+              >
                 <View style={styles.memberRow}>
                   <Text style={styles.rank}>#{i + 1}</Text>
                   <Avatar name={m.displayName} color={m.avatarColor} photoUrl={m.avatarUrl} size={36} />

@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { colors, fontFamily, radii, spacing } from '@/lib/theme';
 import type { Friend } from '@/lib/types';
 import { formatSteps } from '@/lib/format';
@@ -14,9 +15,13 @@ interface Props {
 }
 
 export function LeaderboardRow({ friend, isCurrentUser, onLongPress }: Props) {
+  const router = useRouter();
   return (
     <Pressable
       style={[styles.row, isCurrentUser && styles.highlight]}
+      onPress={
+        isCurrentUser ? undefined : () => router.push({ pathname: '/profile/[userId]', params: { userId: friend.id } })
+      }
       onLongPress={isCurrentUser ? undefined : onLongPress}
       delayLongPress={400}
     >
