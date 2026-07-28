@@ -1,4 +1,5 @@
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily, spacing } from '@/lib/theme';
 import type { Challenge } from '@/lib/types';
@@ -18,11 +19,19 @@ const STATUS_BADGE: Record<'completed' | 'expired', { label: string; color: stri
 };
 
 export function ChallengeCard({ challenge, onJoin }: Props) {
+  const router = useRouter();
   const isActive = challenge.variant === 'active';
   const badge = challenge.status && challenge.status !== 'active' ? STATUS_BADGE[challenge.status] : null;
 
+  // Only already-joined challenges (active/completed/expired) navigate to
+  // the detail screen on tap. Joinable cards keep their plain "Join
+  // challenge" button as the sole tap target — nesting a Pressable card
+  // around that button would also fire the card's onPress on web (DOM click
+  // events bubble there, unlike native's single-responder gesture system).
   return (
-    <Card>
+    <Card
+      onPress={isActive ? () => router.push({ pathname: '/challenge/[id]', params: { id: challenge.id } }) : undefined}
+    >
       <View style={styles.header}>
         <View style={styles.titleWrap}>
           <Text style={styles.title}>{challenge.title}</Text>

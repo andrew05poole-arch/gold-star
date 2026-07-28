@@ -82,6 +82,32 @@ export interface Challenge {
   participants: number;
 }
 
+/** One participant's own progress within a challenge, for the detail screen's member leaderboard. See app/challenge/[id].tsx. */
+export interface ChallengeMember {
+  userId: string;
+  displayName: string;
+  avatarColor: string;
+  progress: number; // raw value, same unit as ChallengeDetail.goalValue
+  status: ChallengeStatus;
+  joinedAt: string;
+  windowEnd: string;
+  isMe: boolean;
+}
+
+/** Full detail of a single challenge, including every member ranked by progress. */
+export interface ChallengeDetail {
+  id: string;
+  title: string;
+  subtitle: string;
+  goalType: ChallengeGoalType;
+  goalValue: number;
+  durationDays: number;
+  startsAt: string;
+  createdAt: string;
+  isOwner: boolean;
+  members: ChallengeMember[]; // ranked by progress, descending
+}
+
 /** One cell in the streak calendar strip. */
 export interface StreakDay {
   date: string;
