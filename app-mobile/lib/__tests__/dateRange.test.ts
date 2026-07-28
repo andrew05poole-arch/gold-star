@@ -3,6 +3,7 @@ import {
   buildInclusiveLocalDateRange,
   lastNLocalDays,
   localDateKey,
+  nextOccurrenceOfWeekday,
   startOfLocalDay,
   utcMondayWeekStart,
 } from '../dateRange';
@@ -70,6 +71,31 @@ function findMonday(around: Date): Date {
   while (d.getDay() !== 1) d.setDate(d.getDate() + 1);
   return d;
 }
+
+describe('nextOccurrenceOfWeekday', () => {
+  it('returns today when today already matches the target weekday', () => {
+    const today = new Date(2026, 6, 15);
+    expect(localDateKey(nextOccurrenceOfWeekday(today.getDay(), today))).toBe(localDateKey(today));
+  });
+
+  it('returns a date within the next 7 days whose weekday matches the target, for every possible target', () => {
+    const today = new Date(2026, 6, 15);
+    for (let targetDow = 0; targetDow <= 6; targetDow++) {
+      const result = nextOccurrenceOfWeekday(targetDow, today);
+      expect(result.getDay()).toBe(targetDow);
+      const daysAhead = Math.round((startOfLocalDay(result).getTime() - startOfLocalDay(today).getTime()) / 86_400_000);
+      expect(daysAhead).toBeGreaterThanOrEqual(0);
+      expect(daysAhead).toBeLessThan(7);
+    }
+  });
+
+  it('never returns a date before today', () => {
+    const today = new Date(2026, 6, 15);
+    const dayBeforeToday = (today.getDay() + 6) % 7; // yesterday's weekday — the "worst case" (furthest back)
+    const result = nextOccurrenceOfWeekday(dayBeforeToday, today);
+    expect(result.getTime()).toBeGreaterThanOrEqual(startOfLocalDay(today).getTime());
+  });
+});
 
 describe('utcMondayWeekStart', () => {
   it("anchors to the Monday of the ISO week, matching the SQL date_trunc('week', ...) convention", () => {

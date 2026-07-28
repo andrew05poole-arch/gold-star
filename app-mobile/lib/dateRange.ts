@@ -88,6 +88,19 @@ export function lastNLocalDays(rangeDays: number, now: Date = new Date()): { sta
 }
 
 /**
+ * Closest local date >= today whose day-of-week matches `targetDow`
+ * (0=Sunday .. 6=Saturday) — today counts if it already matches. Powers the
+ * "This Saturday" quick-pick when scheduling a challenge (see
+ * app/(tabs)/streaks.tsx) — a lightweight relative-date preset rather than
+ * pulling in a native date-picker dependency.
+ */
+export function nextOccurrenceOfWeekday(targetDow: number, now: Date = new Date()): Date {
+  const today = startOfLocalDay(now);
+  const diff = (targetDow - today.getDay() + 7) % 7;
+  return addLocalDays(today, diff);
+}
+
+/**
  * The UTC-Monday-anchored week bucket a "YYYY-MM-DD" date key falls into, as
  * a "YYYY-MM-DD" key itself (the Monday of that week) — mirrors
  * `date_trunc('week', date::timestamp at time zone 'UTC')::date` from

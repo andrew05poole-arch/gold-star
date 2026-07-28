@@ -4,6 +4,7 @@ import { colors, fontFamily, radii, spacing } from '@/lib/theme';
 import { useStepData } from '@/lib/useStepData';
 import { getMyStreak, getMyStreakDays } from '@/lib/api/streaks';
 import { getChallenges, joinChallenge, createChallenge } from '@/lib/api/challenges';
+import { addLocalDays, localDateKey, nextOccurrenceOfWeekday } from '@/lib/dateRange';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { StreakCalendar } from '@/components/StreakCalendar';
 import { StreakFlame } from '@/components/StreakFlame';
@@ -19,6 +20,31 @@ const GOAL_TYPES: { value: ChallengeGoalType; label: string }[] = [
   { value: 'daysStreak', label: 'Day streak' },
 ];
 
+const SATURDAY = 6;
+
+type StartPreset = 'now' | 'tomorrow' | 'saturday' | 'week';
+
+const START_PRESETS: { value: StartPreset; label: string }[] = [
+  { value: 'now', label: 'Now' },
+  { value: 'tomorrow', label: 'Tomorrow' },
+  { value: 'saturday', label: 'This Saturday' },
+  { value: 'week', label: 'In 1 week' },
+];
+
+/** Resolves a start preset to a local date key, or undefined for 'now' — see createChallenge's doc comment for why 'now' is omitted rather than sent explicitly. */
+function resolveStartPreset(preset: StartPreset, now: Date): string | undefined {
+  switch (preset) {
+    case 'tomorrow':
+      return localDateKey(addLocalDays(now, 1));
+    case 'saturday':
+      return localDateKey(nextOccurrenceOfWeekday(SATURDAY, now));
+    case 'week':
+      return localDateKey(addLocalDays(now, 7));
+    default:
+      return undefined;
+  }
+}
+
 export default function Streaks() {
   const { data } = useStepData();
   const [streakLength, setStreakLength] = useState(0);
@@ -29,6 +55,7 @@ export default function Streaks() {
   const [newGoalType, setNewGoalType] = useState<ChallengeGoalType>('stepsPerDay');
   const [newGoalValue, setNewGoalValue] = useState('');
   const [newDurationDays, setNewDurationDays] = useState('');
+  const [newStartPreset, setNewStartPreset] = useState<StartPreset>('now');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -61,6 +88,7 @@ export default function Streaks() {
     setNewGoalType('stepsPerDay');
     setNewGoalValue('');
     setNewDurationDays('');
+    setNewStartPreset('now');
     setCreateError(null);
   }
 
@@ -77,7 +105,8 @@ export default function Streaks() {
     setCreateError(null);
     setCreating(true);
     try {
-      await createChallenge(newTitle.trim(), newGoalType, goalValueNum, Math.round(durationNum));
+      const startsAt = resolveStartPreset(newStartPreset, new Date());
+      await createChallenge(newTitle.trim(), newGoalType, goalValueNum, Math.round(durationNum), startsAt);
       resetCreateForm();
       setCreateOpen(false);
       refreshChallenges();
@@ -176,6 +205,24 @@ export default function Streaks() {
                 keyboardType="number-pad"
                 style={styles.input}
               />
+
+              <Text variant="label" style={styles.fieldLabel}>START</Text>
+              <View style={styles.goalTypeSelector}>
+                {START_PRESETS.map(({ value, label }) => {
+                  const active = value === newStartPreset;
+                  return (
+                    <TouchableOpacity
+                      key={value}
+                      style={[styles.goalTypeOption, active && styles.goalTypeOptionActive]}
+                      onPress={() => setNewStartPreset(value)}
+                    >
+                      <Text style={[styles.goalTypeOptionText, active && styles.goalTypeOptionTextActive]}>
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
 
               {createError && <Text style={styles.createError}>{createError}</Text>}
 

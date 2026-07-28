@@ -70,7 +70,13 @@ export type ChallengeGoalType = 'stepsPerDay' | 'totalSteps' | 'daysStreak';
  * their progress met the goal once that window closed. Undefined when the
  * challenge hasn't been joined (variant === 'joinable').
  */
-export type ChallengeStatus = 'active' | 'completed' | 'expired';
+/**
+ * 'upcoming': joined (or joinable) but the shared window hasn't opened yet —
+ * see 0015_scheduled_challenges.sql. Only possible for a scheduled
+ * challenge (starts_at in the future); an instant challenge goes straight
+ * to 'active'.
+ */
+export type ChallengeStatus = 'upcoming' | 'active' | 'completed' | 'expired';
 
 export interface Challenge {
   id: string;
@@ -80,6 +86,7 @@ export interface Challenge {
   status?: ChallengeStatus; // set when variant === 'active'
   progress: number; // 0..1, used when variant === 'active'
   participants: number;
+  startsAt: string; // local date key; in the future for a scheduled/"queued" challenge
 }
 
 /** One participant's own progress within a challenge, for the detail screen's member leaderboard. See app/challenge/[id].tsx. */
@@ -90,6 +97,7 @@ export interface ChallengeMember {
   progress: number; // raw value, same unit as ChallengeDetail.goalValue
   status: ChallengeStatus;
   joinedAt: string;
+  windowStart: string;
   windowEnd: string;
   isMe: boolean;
 }
