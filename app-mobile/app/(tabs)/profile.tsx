@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily, radii, spacing } from '@/lib/theme';
 import { useAuth, signOut } from '@/lib/useAuth';
 import { getMyProfile, updateBio, updateLocation, uploadAvatar } from '@/lib/api/profile';
+import { errorMessage } from '@/lib/errorMessage';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/Card';
@@ -49,7 +50,7 @@ export default function Profile() {
       // app/index.tsx watches the session and redirects to /login once it clears.
     } catch (err) {
       setSigningOut(false);
-      Alert.alert('Sign out failed', err instanceof Error ? err.message : 'Please try again.');
+      Alert.alert('Sign out failed', errorMessage(err, 'Please try again.'));
     }
   }
 
@@ -62,7 +63,7 @@ export default function Profile() {
       setProfile(updated);
       setLocationSaved(true);
     } catch (err) {
-      setLocationError(err instanceof Error ? err.message : 'Could not save your location.');
+      setLocationError(errorMessage(err, 'Could not save your location.'));
     } finally {
       setSavingLocation(false);
     }
@@ -77,7 +78,7 @@ export default function Profile() {
       setProfile(updated);
       setBioSaved(true);
     } catch (err) {
-      setBioError(err instanceof Error ? err.message : 'Could not save your bio.');
+      setBioError(errorMessage(err, 'Could not save your bio.'));
     } finally {
       setSavingBio(false);
     }
@@ -104,7 +105,7 @@ export default function Profile() {
       const avatarUrl = await uploadAvatar(asset.uri, asset.mimeType ?? 'image/jpeg');
       setProfile((prev) => (prev ? { ...prev, avatarUrl } : prev));
     } catch (err) {
-      Alert.alert('Could not upload photo', err instanceof Error ? err.message : 'Please try again.');
+      Alert.alert('Could not upload photo', errorMessage(err, 'Please try again.'));
     } finally {
       setUploadingPhoto(false);
     }

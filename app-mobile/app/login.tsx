@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily, fontSize, radii, spacing } from '@/lib/theme';
 import { signInWithOtp, verifyOtp } from '@/lib/useAuth';
+import { errorMessage } from '@/lib/errorMessage';
 import { Text } from '@/components/Text';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -25,7 +26,7 @@ export default function Login() {
       await signInWithOtp(email.trim());
       setStep('code');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not send code. Try again.');
+      setError(errorMessage(e, 'Could not send code. Try again.'));
     } finally {
       setLoading(false);
     }
@@ -38,7 +39,7 @@ export default function Login() {
       await verifyOtp(email.trim(), code.trim());
       router.replace('/');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Invalid or expired code.');
+      setError(errorMessage(e, 'Invalid or expired code.'));
     } finally {
       setLoading(false);
     }
