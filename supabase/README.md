@@ -26,7 +26,7 @@ algorithms documented in `../docs/PRD.md` §13.
 | Table | Purpose |
 |---|---|
 | `profiles` | 1:1 with `auth.users`; display name, daily goal, stride/height for normalization, optional self-reported city/region/country (`0009_profile_location.sql`) for future geo leaderboards |
-| `step_records` | One row per user per day; `raw_steps` in, `normalized_steps` computed by trigger (§13.2) |
+| `step_records` | One row per user per day; `raw_steps` in, `normalized_steps` computed by trigger (§13.2); `is_historical_import`/`imported_at` (`0013`) mark onboarding-backfilled rows, excluded from live leaderboard scoring |
 | `streaks` | Current/longest streak + freezes remaining; recomputed by trigger on every step-record write (§13.5) |
 | `friendships` | Directional rows; `pending` until the recipient accepts via `respond_to_friend_request`, then mirrored as `accepted` in both directions |
 | `challenges` / `challenge_participants` | Joinable challenge presets + per-user progress |
@@ -176,6 +176,29 @@ Activity comments (issue #35, `0012_activity_comments.sql`):
 - `delete_activity_comment(p_comment_id)` — deletes a comment the caller
   owns (a thin `security invoker` wrapper over the RLS delete policy, mainly
   so a missing/foreign row raises a clear error instead of a silent no-op).
+
+Historical step import during onboarding (`0013_historical_step_import.sql`):
+
+- Adds `step_records.is_historical_import` (boolean, default `false`) and
+  `step_records.imported_at` (nullable timestamp) — set by the client's bulk
+  `upsertHistoricalStepRecords` (`app-mobile/lib/api/stepRecords.ts`) when a
+  new user backfills 7/30/90 days of Health history during onboarding
+  (`app-mobile/lib/historicalStepImport.ts`).
+- Re-declares `leaderboard_week_scores` to exclude
+  `is_historical_import = true` rows — this is the single, centralized,
+  server-side enforcement point ensuring imported history can never
+  retroactively inflate a live weekly leaderboard score. See the migration's
+  header comment for the full rationale, including why challenges and
+  streaks don't need an equivalent guard (they're already structurally
+  immune) and why `get_rival_target` is deliberately left unguarded
+  (imported history personalizing a private AI-rival target is desired, not
+  a competitive-integrity violation).
+- **Not yet applied to the live Supabase project** — like every migration in
+  this file, it needs to be run once via the SQL editor (or `supabase db
+  push`) and sanity-checked (see "Testing / verifying migrations" below)
+  before the historical-import feature can work end-to-end against the real
+  backend. Until then, the mobile app's import flow will fail at the
+  persistence step with a missing-column error.
 
 ## Testing / verifying migrations
 

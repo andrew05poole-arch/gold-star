@@ -15,7 +15,7 @@
       "adaptiveIcon": { "backgroundColor": "#FF6B4A" },
       "permissions": ["android.permission.health.READ_STEPS", "android.permission.ACTIVITY_RECOGNITION"]
     },
-    "web": { "bundler": "metro", "output": "static" },
+    "web": { "bundler": "metro", "output": "single" },
     "plugins": [
       "expo-router",
       "expo-font",

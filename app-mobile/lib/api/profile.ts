@@ -73,3 +73,17 @@ export async function updateLocation(city?: string, region?: string, country?: s
   if (error) throw error;
   return toUser(data as ProfileRow);
 }
+
+/**
+ * Sets the user's starter daily goal, e.g. from the onboarding historical-import
+ * summary's suggested goal (see lib/stepHistorySummary.ts). `daily_goal`
+ * otherwise only ever gets Postgres's schema default (10000) — there is no
+ * other write path to it today.
+ */
+export async function updateDailyGoal(dailyGoal: number): Promise<void> {
+  const { data: auth, error: authError } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  if (!auth.user) throw new Error('Not signed in');
+  const { error } = await supabase.from('profiles').update({ daily_goal: dailyGoal }).eq('id', auth.user.id);
+  if (error) throw error;
+}

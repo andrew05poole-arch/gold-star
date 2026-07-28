@@ -116,3 +116,73 @@ export interface ActivityComment {
   body: string;
   createdAt: string;
 }
+
+// ---------------------------------------------------------------------------
+// Historical step import (onboarding). See lib/historicalStepImport.ts and
+// lib/stepHistorySummary.ts. Mirrors docs/PRD.md §9.1's onboarding sketch,
+// extended with a bulk-history-import step not yet described there.
+// ---------------------------------------------------------------------------
+
+/** Offered import-period lengths; 30 is the recommended default. */
+export type ImportRangeDays = 7 | 30 | 90;
+
+/** Inclusive local-calendar-day range — see lib/dateRange.ts for the exact date/timezone rules. */
+export interface HistoricalStepQuery {
+  startDate: Date;
+  endDate: Date;
+}
+
+export type MovementProfileKey =
+  | 'steady_mover'
+  | 'weekend_warrior'
+  | 'weekday_grinder'
+  | 'high_volume_walker'
+  | 'building_momentum'
+  | 'getting_started';
+
+export interface MovementProfile {
+  key: MovementProfileKey;
+  displayName: string;
+  explanation: string;
+}
+
+/**
+ * Onboarding personal-stats summary computed from imported history. All
+ * numeric comparisons are `null` when they can't be honestly calculated
+ * (insufficient data) rather than a misleading 0 — see
+ * lib/stepHistorySummary.ts for the calculation rules.
+ */
+export interface HistoricalStepSummary {
+  periodStart: string; // local date key, inclusive
+  periodEnd: string; // local date key, inclusive
+  daysWithData: number;
+  totalSteps: number;
+  averageDailySteps: number | null;
+  currentWeekSteps: number;
+  previousWeekSteps: number;
+  weekOverWeekPercent: number | null;
+  bestDay: { date: string; steps: number } | null;
+  weekdayAverage: number | null;
+  weekendAverage: number | null;
+  suggestedDailyGoal: number | null;
+  /** Always null until real league/benchmark data exists — see estimateStarterLeague(). */
+  estimatedLeague: string | null;
+  movementProfile: MovementProfile | null;
+}
+
+/**
+ * Terminal outcomes of one import attempt. Distinct from the transient
+ * 'importing' UI phase, which is local onboarding-screen state, not a
+ * service result — see app/onboarding.tsx.
+ */
+export type HistoricalImportStatus = 'completed' | 'partial' | 'no-data' | 'permission-denied' | 'failed';
+
+export interface HistoricalImportResult {
+  status: HistoricalImportStatus;
+  importedDays: number; // newly-inserted rows
+  updatedDays: number; // existing rows overwritten by a re-import
+  skippedDays: number; // fetched but invalid/unusable (e.g. negative steps)
+  startDate: string;
+  endDate: string;
+  summary?: HistoricalStepSummary;
+}
