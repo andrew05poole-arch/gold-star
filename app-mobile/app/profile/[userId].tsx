@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily, spacing } from '@/lib/theme';
 import { getPublicProfile } from '@/lib/api/profile';
+import { errorMessage } from '@/lib/errorMessage';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/Card';
@@ -36,7 +37,7 @@ export default function PublicProfileScreen() {
     setError(null);
     getPublicProfile(userId)
       .then(setProfile)
-      .catch((e) => setError(e instanceof Error ? e.message : 'Could not load this profile.'))
+      .catch((e) => setError(errorMessage(e, 'Could not load this profile.')))
       .finally(() => setLoading(false));
   }, [userId]);
 

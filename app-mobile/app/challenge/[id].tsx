@@ -4,6 +4,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily, spacing } from '@/lib/theme';
 import { deleteChallenge, getChallengeDetail, updateChallenge } from '@/lib/api/challenges';
+import { errorMessage } from '@/lib/errorMessage';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/Card';
@@ -46,7 +47,7 @@ export default function ChallengeDetailScreen() {
         setEditTitle(d.title);
         setEditSubtitle(d.subtitle);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Could not load this challenge.'))
+      .catch((e) => setError(errorMessage(e, 'Could not load this challenge.')))
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -68,7 +69,7 @@ export default function ChallengeDetailScreen() {
       setEditing(false);
       load();
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : 'Could not save changes.');
+      setSaveError(errorMessage(e, 'Could not save changes.'));
     } finally {
       setSaving(false);
     }
@@ -86,7 +87,7 @@ export default function ChallengeDetailScreen() {
             await deleteChallenge(detail.id);
             router.back();
           } catch (e) {
-            Alert.alert('Could not delete', e instanceof Error ? e.message : 'Try again.');
+            Alert.alert('Could not delete', errorMessage(e, 'Try again.'));
           }
         },
       },

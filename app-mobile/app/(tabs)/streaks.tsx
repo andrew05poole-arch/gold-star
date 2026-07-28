@@ -5,6 +5,7 @@ import { useStepData } from '@/lib/useStepData';
 import { getMyStreak, getMyStreakDays } from '@/lib/api/streaks';
 import { getChallenges, joinChallenge, createChallenge } from '@/lib/api/challenges';
 import { addLocalDays, localDateKey, nextOccurrenceOfWeekday } from '@/lib/dateRange';
+import { errorMessage } from '@/lib/errorMessage';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { StreakCalendar } from '@/components/StreakCalendar';
 import { StreakFlame } from '@/components/StreakFlame';
@@ -111,7 +112,7 @@ export default function Streaks() {
       setCreateOpen(false);
       refreshChallenges();
     } catch (e) {
-      setCreateError(e instanceof Error ? e.message : 'Could not create that challenge.');
+      setCreateError(errorMessage(e, 'Could not create that challenge.'));
     } finally {
       setCreating(false);
     }

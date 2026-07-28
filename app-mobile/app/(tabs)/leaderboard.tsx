@@ -14,6 +14,7 @@ import {
   removeFriend,
 } from '@/lib/api/leaderboard';
 import { getMyProfile } from '@/lib/api/profile';
+import { errorMessage } from '@/lib/errorMessage';
 import { useAuth } from '@/lib/useAuth';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { LeaderboardRow } from '@/components/LeaderboardRow';
@@ -110,7 +111,7 @@ export default function Leaderboard() {
       refresh();
       refreshLeaderboard();
     } catch (e) {
-      setInviteError(e instanceof Error ? e.message : 'Could not send that request.');
+      setInviteError(errorMessage(e, 'Could not send that request.'));
     } finally {
       setInviting(false);
     }
