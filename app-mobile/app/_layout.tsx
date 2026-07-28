@@ -32,6 +32,7 @@ export default function RootLayout() {
           <Stack.Screen name="login" />
           <Stack.Screen name="onboarding" />
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="challenge/[id]" />
         </Stack>
       </AuthContext.Provider>
     </SafeAreaProvider>
