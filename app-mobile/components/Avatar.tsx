@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import { fontFamily, radii } from '@/lib/theme';
 import { Text } from './Text';
 
@@ -6,6 +6,8 @@ interface Props {
   name: string;
   color: string;
   size?: number;
+  /** When set, renders the photo instead of the colored-initials fallback. */
+  photoUrl?: string;
 }
 
 function initials(name: string): string {
@@ -17,7 +19,15 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-export function Avatar({ name, color, size = 44 }: Props) {
+export function Avatar({ name, color, size = 44, photoUrl }: Props) {
+  if (photoUrl) {
+    return (
+      <Image
+        source={{ uri: photoUrl }}
+        style={{ width: size, height: size, borderRadius: radii.full }}
+      />
+    );
+  }
   return (
     <View style={[styles.base, { width: size, height: size, borderRadius: radii.full, backgroundColor: color }]}>
       <Text style={[styles.text, { fontSize: size * 0.36 }]}>{initials(name)}</Text>

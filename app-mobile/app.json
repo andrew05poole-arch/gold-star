@@ -26,7 +26,13 @@
           "healthUpdatePermission": "StepLeague does not write health data; this permission is unused."
         }
       ],
-      "react-native-health-connect"
+      "react-native-health-connect",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "StepLeague accesses your photos to let you set a profile picture."
+        }
+      ]
     ],
     "experiments": { "typedRoutes": true }
   }

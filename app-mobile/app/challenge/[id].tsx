@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily, spacing } from '@/lib/theme';
 import { deleteChallenge, getChallengeDetail, updateChallenge } from '@/lib/api/challenges';
 import { ScreenContainer } from '@/components/ScreenContainer';
+import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/Card';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Text } from '@/components/Text';
@@ -183,9 +184,8 @@ export default function ChallengeDetailScreen() {
               <Card key={m.userId} style={styles.memberCard}>
                 <View style={styles.memberRow}>
                   <Text style={styles.rank}>#{i + 1}</Text>
-                  <View style={[styles.avatar, { backgroundColor: m.avatarColor }]}>
-                    <Text style={styles.avatarInitial}>{m.displayName.charAt(0).toUpperCase()}</Text>
-                  </View>
+                  {/* photoUrl wiring lands in PR 2 once ChallengeMember carries avatarUrl */}
+                  <Avatar name={m.displayName} color={m.avatarColor} size={36} />
                   <View style={styles.memberInfo}>
                     <Text style={styles.memberName}>{m.isMe ? `${m.displayName} (you)` : m.displayName}</Text>
                     <Text variant="caption">
@@ -237,8 +237,6 @@ const styles = StyleSheet.create({
   memberCard: { paddingVertical: spacing.md },
   memberRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   rank: { fontFamily: fontFamily.extraBold, fontSize: 13, color: colors.textSecondary, width: 28 },
-  avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  avatarInitial: { fontFamily: fontFamily.extraBold, fontSize: 14, color: '#FFFFFF' },
   memberInfo: { flex: 1, gap: 2 },
   memberName: { fontFamily: fontFamily.bold, fontSize: 15, color: colors.textPrimary },
   memberProgress: { alignItems: 'flex-end', gap: 2 },

@@ -9,6 +9,8 @@ interface ProfileRow {
   id: string;
   display_name: string;
   avatar_color: string;
+  avatar_url: string | null;
+  bio: string | null;
   daily_goal: number;
   height_cm: number | null;
   stride_length_cm: number | null;
@@ -23,6 +25,8 @@ function toUser(row: ProfileRow): User {
     id: row.id,
     displayName: row.display_name,
     avatarColor: row.avatar_color,
+    avatarUrl: row.avatar_url ?? undefined,
+    bio: row.bio ?? undefined,
     dailyGoal: row.daily_goal,
     heightCm: row.height_cm ?? undefined,
     strideLengthCm: row.stride_length_cm ?? undefined,
@@ -86,4 +90,55 @@ export async function updateDailyGoal(dailyGoal: number): Promise<void> {
   if (!auth.user) throw new Error('Not signed in');
   const { error } = await supabase.from('profiles').update({ daily_goal: dailyGoal }).eq('id', auth.user.id);
   if (error) throw error;
+}
+
+/** Sets (or clears, with an empty string) the signed-in user's About Me. Server-side capped at 160 chars (0016_profile_bio_and_photo.sql). */
+export async function updateBio(bio: string): Promise<User> {
+  const { data: auth, error: authError } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  if (!auth.user) throw new Error('Not signed in');
+  const trimmed = bio.trim();
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ bio: trimmed.length > 0 ? trimmed : null })
+    .eq('id', auth.user.id)
+    .select()
+    .single();
+  if (error) throw error;
+  return toUser(data as ProfileRow);
+}
+
+/**
+ * Uploads a locally-picked image (see expo-image-picker in app/(tabs)/profile.tsx)
+ * to the "avatars" storage bucket at `{userId}/avatar.<ext>` (upsert: true, so
+ * re-uploading replaces the same file) and points `profiles.avatar_url` at its
+ * public URL. Returns the new URL with a cache-busting query param — the path
+ * is stable across re-uploads, so without one a CDN/browser could keep
+ * serving the old cached image at the same URL.
+ */
+export async function uploadAvatar(localUri: string, contentType: string): Promise<string> {
+  const { data: auth, error: authError } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  if (!auth.user) throw new Error('Not signed in');
+
+  const response = await fetch(localUri);
+  const arrayBuffer = await response.arrayBuffer();
+  const extension = contentType.split('/')[1] ?? 'jpg';
+  const path = `${auth.user.id}/avatar.${extension}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('avatars')
+    .upload(path, arrayBuffer, { contentType, upsert: true });
+  if (uploadError) throw uploadError;
+
+  const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(path);
+  const avatarUrl = `${publicUrlData.publicUrl}?updated=${Date.now()}`;
+
+  const { error: updateError } = await supabase
+    .from('profiles')
+    .update({ avatar_url: avatarUrl })
+    .eq('id', auth.user.id);
+  if (updateError) throw updateError;
+
+  return avatarUrl;
 }
