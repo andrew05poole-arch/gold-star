@@ -7,6 +7,7 @@ interface ActivityFeedRow {
   user_id: string;
   display_name: string;
   avatar_color: string;
+  avatar_url: string | null;
   event_type: ActivityEventType;
   payload: Record<string, unknown>;
   created_at: string;
@@ -23,6 +24,7 @@ interface CommentRow {
   user_id: string;
   display_name: string;
   avatar_color: string;
+  avatar_url: string | null;
   body: string;
   created_at: string;
 }
@@ -53,6 +55,7 @@ export async function getFriendActivityFeed(): Promise<ActivityEvent[]> {
       userId: row.user_id,
       displayName: row.display_name,
       avatarColor: row.avatar_color,
+      avatarUrl: row.avatar_url ?? undefined,
       eventType: row.event_type,
       payload: row.payload ?? {},
       createdAt: row.created_at,
@@ -94,6 +97,7 @@ export async function getComments(eventId: string): Promise<ActivityComment[]> {
     userId: row.user_id,
     displayName: row.display_name,
     avatarColor: row.avatar_color,
+    avatarUrl: row.avatar_url ?? undefined,
     body: row.body,
     createdAt: row.created_at,
   }));
@@ -127,6 +131,7 @@ export async function addComment(eventId: string, body: string): Promise<Activit
     userId: row.user_id,
     displayName: profile?.displayName ?? 'You',
     avatarColor: profile?.avatarColor ?? '#7C6FFF',
+    avatarUrl: profile?.avatarUrl,
     body: row.body,
     createdAt: row.created_at,
   };

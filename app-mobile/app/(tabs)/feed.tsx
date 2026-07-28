@@ -101,7 +101,7 @@ function FeedItem({ event, isSelf, onToggleReaction }: FeedItemProps) {
   return (
     <Card style={styles.card}>
       <View style={styles.row}>
-        <Avatar name={event.displayName} color={event.avatarColor} size={40} />
+        <Avatar name={event.displayName} color={event.avatarColor} photoUrl={event.avatarUrl} size={40} />
         <View style={styles.middle}>
           <View style={styles.descriptionRow}>
             <Ionicons name={eventIcon(event.eventType)} size={14} color={colors.primary} />
@@ -136,7 +136,7 @@ function FeedItem({ event, isSelf, onToggleReaction }: FeedItemProps) {
           {!loadingComments &&
             comments.map((comment) => (
               <View key={comment.id} style={styles.commentRow}>
-                <Avatar name={comment.displayName} color={comment.avatarColor} size={28} />
+                <Avatar name={comment.displayName} color={comment.avatarColor} photoUrl={comment.avatarUrl} size={28} />
                 <View style={styles.commentBody}>
                   <Text style={styles.commentAuthor}>{comment.displayName}</Text>
                   <Text style={styles.commentText}>{comment.body}</Text>

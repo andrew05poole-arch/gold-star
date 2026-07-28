@@ -41,6 +41,7 @@ export interface Friend {
   id: string;
   displayName: string;
   avatarColor: string;
+  avatarUrl?: string;
   weeklySteps: number;
   rank: number;
   previousRank: number;
@@ -51,6 +52,7 @@ export interface PendingFriendRequest {
   requesterId: string;
   displayName: string;
   avatarColor: string;
+  avatarUrl?: string;
   createdAt: string;
 }
 
@@ -71,8 +73,7 @@ export type ChallengeGoalType = 'stepsPerDay' | 'totalSteps' | 'daysStreak';
  * [joined_at, joined_at + duration_days - 1] window vs. today, and whether
  * their progress met the goal once that window closed. Undefined when the
  * challenge hasn't been joined (variant === 'joinable').
- */
-/**
+ *
  * 'upcoming': joined (or joinable) but the shared window hasn't opened yet —
  * see 0015_scheduled_challenges.sql. Only possible for a scheduled
  * challenge (starts_at in the future); an instant challenge goes straight
@@ -96,6 +97,7 @@ export interface ChallengeMember {
   userId: string;
   displayName: string;
   avatarColor: string;
+  avatarUrl?: string;
   progress: number; // raw value, same unit as ChallengeDetail.goalValue
   status: ChallengeStatus;
   joinedAt: string;
@@ -135,6 +137,7 @@ export interface ActivityEvent {
   userId: string;
   displayName: string;
   avatarColor: string;
+  avatarUrl?: string;
   eventType: ActivityEventType;
   payload: Record<string, unknown>;
   createdAt: string;
@@ -149,6 +152,7 @@ export interface ActivityComment {
   userId: string;
   displayName: string;
   avatarColor: string;
+  avatarUrl?: string;
   body: string;
   createdAt: string;
 }

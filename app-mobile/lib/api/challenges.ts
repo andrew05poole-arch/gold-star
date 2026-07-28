@@ -38,6 +38,7 @@ interface ProfileNameRow {
   id: string;
   display_name: string;
   avatar_color: string;
+  avatar_url: string | null;
 }
 
 interface ParticipantRow {
@@ -145,7 +146,7 @@ export async function getChallengeDetail(challengeId: string): Promise<Challenge
   if (memberIds.length > 0) {
     const { data: profileRows, error: pErr } = await supabase
       .from('profiles')
-      .select('id, display_name, avatar_color')
+      .select('id, display_name, avatar_color, avatar_url')
       .in('id', memberIds);
     if (pErr) throw pErr;
     profilesById = new Map(((profileRows as ProfileNameRow[] | null) ?? []).map((p) => [p.id, p]));
@@ -158,6 +159,7 @@ export async function getChallengeDetail(challengeId: string): Promise<Challenge
         userId: r.user_id,
         displayName: profile?.display_name ?? 'StepLeague user',
         avatarColor: profile?.avatar_color ?? '#766F6A', // fallback for an orphaned participant row with no matching profile
+        avatarUrl: profile?.avatar_url ?? undefined,
         progress: r.progress,
         status: r.status,
         joinedAt: r.joined_at,
