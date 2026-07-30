@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Share, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, Share, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors, fontFamily, radii, spacing } from '@/lib/theme';
 import { nextWeeklyResetMs } from '@/lib/mockData';
 import {
@@ -107,13 +107,26 @@ export default function Leaderboard() {
 
   async function handleShareInvite() {
     if (!referralCode) return;
+    const message = `Join me on StepLeague! Use code ${referralCode} when you sign up.`;
     setSharing(true);
     try {
-      await Share.share({
-        message: `Join me on StepLeague! Use code ${referralCode} when you sign up.`,
-      });
+      // react-native-web's Share.share() is a thin proxy over navigator.share()
+      // with no timeout — on desktop browsers without OS share-target support
+      // that promise can hang indefinitely, stranding the button in its
+      // loading state forever. Clipboard is the reliable path on web; native
+      // platforms keep the real OS share sheet below.
+      if (Platform.OS === 'web') {
+        if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(message);
+          Alert.alert('Copied!', 'Invite message copied to your clipboard — paste it anywhere to send.');
+        } else {
+          Alert.alert('Copy this to invite a friend', message);
+        }
+      } else {
+        await Share.share({ message });
+      }
     } catch {
-      // User dismissed the share sheet or sharing failed silently — no-op.
+      // User dismissed the share sheet, or the clipboard write was denied — no-op.
     } finally {
       setSharing(false);
     }
