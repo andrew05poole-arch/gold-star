@@ -3,11 +3,13 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily, spacing } from '@/lib/theme';
-import { getPublicProfile } from '@/lib/api/profile';
+import { followUser, getPublicProfile, unfollowUser } from '@/lib/api/profile';
 import { errorMessage } from '@/lib/errorMessage';
+import { useAuth } from '@/lib/useAuth';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/Card';
+import { PrimaryButton } from '@/components/PrimaryButton';
 import { Text } from '@/components/Text';
 import type { ChallengeGoalType, ChallengeStatus, PublicProfile } from '@/lib/types';
 
@@ -27,9 +29,11 @@ const STATUS_COLOR: Record<ChallengeStatus, string> = {
 export default function PublicProfileScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
   const router = useRouter();
+  const { session } = useAuth();
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [followLoading, setFollowLoading] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -40,6 +44,28 @@ export default function PublicProfileScreen() {
       .catch((e) => setError(errorMessage(e, 'Could not load this profile.')))
       .finally(() => setLoading(false));
   }, [userId]);
+
+  async function handleToggleFollow() {
+    if (!profile || !userId) return;
+    setFollowLoading(true);
+    const wasFollowing = profile.isFollowing;
+    try {
+      if (wasFollowing) {
+        await unfollowUser(userId);
+      } else {
+        await followUser(userId);
+      }
+      setProfile((prev) =>
+        prev
+          ? { ...prev, isFollowing: !wasFollowing, followerCount: prev.followerCount + (wasFollowing ? -1 : 1) }
+          : prev,
+      );
+    } catch {
+      // Leave state as-is so the user can retry.
+    } finally {
+      setFollowLoading(false);
+    }
+  }
 
   return (
     <ScreenContainer>
@@ -70,8 +96,20 @@ export default function PublicProfileScreen() {
             <View style={styles.headerInfo}>
               <Text variant="title">{profile.displayName}</Text>
               <Text variant="caption">Member since {profile.memberSince.slice(0, 10)}</Text>
+              <Text variant="caption">
+                {profile.followerCount} {profile.followerCount === 1 ? 'follower' : 'followers'}
+              </Text>
             </View>
           </Card>
+
+          {profile.id !== session?.user.id && (
+            <PrimaryButton
+              label={profile.isFollowing ? 'Following' : 'Follow'}
+              variant={profile.isFollowing ? 'ghost' : 'primary'}
+              onPress={handleToggleFollow}
+              loading={followLoading}
+            />
+          )}
 
           {!!profile.bio && (
             <Card>

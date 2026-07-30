@@ -180,18 +180,31 @@ interface ChallengeTitleRow {
  * same reasoning `getChallenges`/`getChallengeDetail` already use.
  */
 export async function getPublicProfile(userId: string): Promise<PublicProfile> {
-  const [{ data: profileRow, error: pErr }, { data: streakRow, error: sErr }, { data: statusRows, error: cErr }] =
-    await Promise.all([
-      supabase.from('profiles').select('id, display_name, avatar_color, avatar_url, bio, created_at').eq('id', userId).single(),
-      supabase.from('streaks').select('current_length, longest_length').eq('user_id', userId).maybeSingle(),
-      supabase
-        .from('challenge_participant_status')
-        .select('challenge_id, joined_at, progress, status')
-        .eq('user_id', userId),
-    ]);
+  const { data: auth } = await supabase.auth.getUser();
+
+  const [
+    { data: profileRow, error: pErr },
+    { data: streakRow, error: sErr },
+    { data: statusRows, error: cErr },
+    { count: followerCount, error: fErr },
+    { data: myFollowRow, error: ifErr },
+  ] = await Promise.all([
+    supabase.from('profiles').select('id, display_name, avatar_color, avatar_url, bio, created_at').eq('id', userId).single(),
+    supabase.from('streaks').select('current_length, longest_length').eq('user_id', userId).maybeSingle(),
+    supabase
+      .from('challenge_participant_status')
+      .select('challenge_id, joined_at, progress, status')
+      .eq('user_id', userId),
+    supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('followee_id', userId),
+    auth.user
+      ? supabase.from('follows').select('follower_id').eq('follower_id', auth.user.id).eq('followee_id', userId).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ]);
   if (pErr) throw pErr;
   if (sErr) throw sErr;
   if (cErr) throw cErr;
+  if (fErr) throw fErr;
+  if (ifErr) throw ifErr;
 
   const statusRowsTyped = (statusRows as PublicChallengeStatusRow[] | null) ?? [];
   const challengeIds = statusRowsTyped.map((r) => r.challenge_id);
@@ -235,5 +248,27 @@ export async function getPublicProfile(userId: string): Promise<PublicProfile> {
     currentStreak: streak?.current_length ?? 0,
     longestStreak: streak?.longest_length ?? 0,
     challengeHistory,
+    followerCount: followerCount ?? 0,
+    isFollowing: !!myFollowRow,
   };
+}
+
+export async function followUser(userId: string): Promise<void> {
+  const { data: auth, error: authError } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  if (!auth.user) throw new Error('Not signed in');
+  const { error } = await supabase.from('follows').insert({ follower_id: auth.user.id, followee_id: userId });
+  if (error) throw error;
+}
+
+export async function unfollowUser(userId: string): Promise<void> {
+  const { data: auth, error: authError } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  if (!auth.user) throw new Error('Not signed in');
+  const { error } = await supabase
+    .from('follows')
+    .delete()
+    .eq('follower_id', auth.user.id)
+    .eq('followee_id', userId);
+  if (error) throw error;
 }

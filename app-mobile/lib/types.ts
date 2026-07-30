@@ -251,4 +251,6 @@ export interface PublicProfile {
   currentStreak: number;
   longestStreak: number;
   challengeHistory: PublicChallengeHistoryItem[]; // most recently joined first
+  followerCount: number;
+  isFollowing: boolean; // true if the signed-in caller follows this profile
 }
