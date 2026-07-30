@@ -3,22 +3,38 @@ import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors, fontFamily, radii, spacing } from '@/lib/theme';
 import { useStepData } from '@/lib/useStepData';
 import { getMyStreak, getMyStreakDays } from '@/lib/api/streaks';
-import { getChallenges, joinChallenge, createChallenge } from '@/lib/api/challenges';
+import {
+  getChallenges,
+  joinChallenge,
+  createChallenge,
+  getChallengeInvites,
+  inviteToChallenge,
+  respondToChallengeInvite,
+} from '@/lib/api/challenges';
+import { getLeaderboard } from '@/lib/api/leaderboard';
 import { addLocalDays, localDateKey, nextOccurrenceOfWeekday } from '@/lib/dateRange';
 import { errorMessage } from '@/lib/errorMessage';
+import { useAuth } from '@/lib/useAuth';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { StreakCalendar } from '@/components/StreakCalendar';
 import { StreakFlame } from '@/components/StreakFlame';
 import { ChallengeCard } from '@/components/ChallengeCard';
+import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/Card';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Text } from '@/components/Text';
-import type { Challenge, ChallengeGoalType, StreakDay } from '@/lib/types';
+import { Ionicons } from '@expo/vector-icons';
+import type { Challenge, ChallengeGoalType, ChallengeInvite, ChallengeVisibility, Friend, StreakDay } from '@/lib/types';
 
 const GOAL_TYPES: { value: ChallengeGoalType; label: string }[] = [
   { value: 'stepsPerDay', label: 'Steps/day' },
   { value: 'totalSteps', label: 'Total steps' },
   { value: 'daysStreak', label: 'Day streak' },
+];
+
+const VISIBILITIES: { value: ChallengeVisibility; label: string }[] = [
+  { value: 'public', label: 'Public' },
+  { value: 'invite_only', label: 'Invite-only' },
 ];
 
 const SATURDAY = 6;
@@ -48,6 +64,7 @@ function resolveStartPreset(preset: StartPreset, now: Date): string | undefined 
 
 export default function Streaks() {
   const { data } = useStepData();
+  const { session } = useAuth();
   const [streakLength, setStreakLength] = useState(0);
   const [streakDays, setStreakDays] = useState<StreakDay[]>([]);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
@@ -57,11 +74,20 @@ export default function Streaks() {
   const [newGoalValue, setNewGoalValue] = useState('');
   const [newDurationDays, setNewDurationDays] = useState('');
   const [newStartPreset, setNewStartPreset] = useState<StartPreset>('now');
+  const [newVisibility, setNewVisibility] = useState<ChallengeVisibility>('public');
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [selectedFriendIds, setSelectedFriendIds] = useState<Set<string>>(new Set());
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [invites, setInvites] = useState<ChallengeInvite[]>([]);
+  const [respondingToInvite, setRespondingToInvite] = useState<string | null>(null);
 
   const refreshChallenges = useCallback(() => {
     getChallenges().then(setChallenges).catch(() => {});
+  }, []);
+
+  const refreshInvites = useCallback(() => {
+    getChallengeInvites().then(setInvites).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -73,11 +99,14 @@ export default function Streaks() {
       .then(setStreakDays)
       .catch(() => {});
     refreshChallenges();
-  }, [data, refreshChallenges]);
+    refreshInvites();
+    getLeaderboard().then(setFriends).catch(() => {});
+  }, [data, refreshChallenges, refreshInvites]);
 
   const active = challenges.filter((c) => c.variant === 'active' && c.status === 'active');
   const finished = challenges.filter((c) => c.variant === 'active' && c.status !== 'active');
   const joinable = challenges.filter((c) => c.variant === 'joinable');
+  const inviteCandidates = friends.filter((f) => f.id !== session?.user.id);
 
   async function handleJoin(id: string) {
     await joinChallenge(id);
@@ -90,7 +119,18 @@ export default function Streaks() {
     setNewGoalValue('');
     setNewDurationDays('');
     setNewStartPreset('now');
+    setNewVisibility('public');
+    setSelectedFriendIds(new Set());
     setCreateError(null);
+  }
+
+  function toggleFriendSelected(friendId: string) {
+    setSelectedFriendIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(friendId)) next.delete(friendId);
+      else next.add(friendId);
+      return next;
+    });
   }
 
   const goalValueNum = Number(newGoalValue);
@@ -107,7 +147,21 @@ export default function Streaks() {
     setCreating(true);
     try {
       const startsAt = resolveStartPreset(newStartPreset, new Date());
-      await createChallenge(newTitle.trim(), newGoalType, goalValueNum, Math.round(durationNum), startsAt);
+      const challengeId = await createChallenge(
+        newTitle.trim(),
+        newGoalType,
+        goalValueNum,
+        Math.round(durationNum),
+        startsAt,
+        newVisibility,
+      );
+      if (newVisibility === 'invite_only' && selectedFriendIds.size > 0) {
+        // Best-effort: one failed invite (e.g. a race with a friend removal)
+        // shouldn't undo the challenge that was just successfully created.
+        await Promise.all(
+          [...selectedFriendIds].map((friendId) => inviteToChallenge(challengeId, friendId).catch(() => {})),
+        );
+      }
       resetCreateForm();
       setCreateOpen(false);
       refreshChallenges();
@@ -115,6 +169,19 @@ export default function Streaks() {
       setCreateError(errorMessage(e, 'Could not create that challenge.'));
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleRespondToInvite(challengeId: string, accept: boolean) {
+    setRespondingToInvite(challengeId);
+    try {
+      await respondToChallengeInvite(challengeId, accept);
+      setInvites((prev) => prev.filter((i) => i.challengeId !== challengeId));
+      if (accept) refreshChallenges();
+    } catch {
+      // Leave the invite in the list so the user can retry.
+    } finally {
+      setRespondingToInvite(null);
     }
   }
 
@@ -129,6 +196,37 @@ export default function Streaks() {
         <Text style={styles.cardLabel}>THIS WEEK</Text>
         <StreakCalendar days={streakDays} />
       </Card>
+
+      {invites.length > 0 && (
+        <View style={styles.invites}>
+          <Text style={styles.invitesTitle}>Challenge invites</Text>
+          {invites.map((invite) => (
+            <View key={invite.challengeId} style={styles.inviteRow}>
+              <View style={styles.inviteInfo}>
+                <Text style={styles.inviteChallengeTitle}>{invite.challengeTitle}</Text>
+                <Text style={styles.inviteFromName}>from {invite.invitedByName}</Text>
+              </View>
+              <View style={styles.inviteActions}>
+                <PrimaryButton
+                  label="Accept"
+                  onPress={() => handleRespondToInvite(invite.challengeId, true)}
+                  loading={respondingToInvite === invite.challengeId}
+                  disabled={respondingToInvite !== null && respondingToInvite !== invite.challengeId}
+                  style={styles.inviteBtn}
+                />
+                <PrimaryButton
+                  label="Decline"
+                  variant="ghost"
+                  onPress={() => handleRespondToInvite(invite.challengeId, false)}
+                  loading={false}
+                  disabled={respondingToInvite !== null}
+                  style={styles.inviteBtn}
+                />
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
 
       {active.length > 0 && (
         <View style={styles.section}>
@@ -225,6 +323,50 @@ export default function Streaks() {
                 })}
               </View>
 
+              <Text variant="label" style={styles.fieldLabel}>VISIBILITY</Text>
+              <View style={styles.goalTypeSelector}>
+                {VISIBILITIES.map(({ value, label }) => {
+                  const active = value === newVisibility;
+                  return (
+                    <TouchableOpacity
+                      key={value}
+                      style={[styles.goalTypeOption, active && styles.goalTypeOptionActive]}
+                      onPress={() => setNewVisibility(value)}
+                    >
+                      <Text style={[styles.goalTypeOptionText, active && styles.goalTypeOptionTextActive]}>
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {newVisibility === 'invite_only' && (
+                <>
+                  <Text variant="label" style={styles.fieldLabel}>INVITE FRIENDS</Text>
+                  {inviteCandidates.length === 0 ? (
+                    <Text style={styles.inviteHint}>Add some friends first to invite them to a challenge.</Text>
+                  ) : (
+                    <View style={styles.friendPicker}>
+                      {inviteCandidates.map((friend) => {
+                        const selected = selectedFriendIds.has(friend.id);
+                        return (
+                          <TouchableOpacity
+                            key={friend.id}
+                            style={[styles.friendOption, selected && styles.friendOptionActive]}
+                            onPress={() => toggleFriendSelected(friend.id)}
+                          >
+                            <Avatar name={friend.displayName} color={friend.avatarColor} photoUrl={friend.avatarUrl} size={32} />
+                            <Text style={styles.friendOptionText}>{friend.displayName}</Text>
+                            {selected && <Ionicons name="checkmark-circle" size={20} color={colors.rivalAccent} />}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
+                </>
+              )}
+
               {createError && <Text style={styles.createError}>{createError}</Text>}
 
               <View style={styles.createActions}>
@@ -290,4 +432,29 @@ const styles = StyleSheet.create({
   createError: { fontFamily: fontFamily.bold, fontSize: 12, color: colors.danger, marginTop: spacing.xs },
   createActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   createActionBtn: { flex: 1 },
+  inviteHint: { fontFamily: fontFamily.semibold, fontSize: 12, color: colors.textSecondary },
+  friendPicker: { gap: spacing.xs },
+  friendOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.xs,
+    borderRadius: radii.md,
+    backgroundColor: '#EFEDFF',
+  },
+  friendOptionActive: { backgroundColor: colors.rivalAccent + '22' },
+  friendOptionText: { flex: 1, fontFamily: fontFamily.bold, fontSize: 13, color: colors.textPrimary },
+  invites: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  invitesTitle: { fontFamily: fontFamily.extraBold, fontSize: 15, color: colors.textPrimary },
+  inviteRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  inviteInfo: { flex: 1, gap: 2 },
+  inviteChallengeTitle: { fontFamily: fontFamily.bold, fontSize: 14, color: colors.textPrimary },
+  inviteFromName: { fontFamily: fontFamily.semibold, fontSize: 12, color: colors.textSecondary },
+  inviteActions: { flexDirection: 'row', gap: spacing.xs },
+  inviteBtn: { height: 40, paddingHorizontal: spacing.sm },
 });
