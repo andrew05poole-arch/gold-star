@@ -1,5 +1,13 @@
 import { supabase } from '../supabase';
-import type { Challenge, ChallengeDetail, ChallengeGoalType, ChallengeMember, ChallengeStatus } from '../types';
+import type {
+  Challenge,
+  ChallengeDetail,
+  ChallengeGoalType,
+  ChallengeInvite,
+  ChallengeMember,
+  ChallengeStatus,
+  ChallengeVisibility,
+} from '../types';
 
 interface ChallengeRow {
   id: string;
@@ -7,6 +15,7 @@ interface ChallengeRow {
   subtitle: string | null;
   goal_value: number;
   starts_at: string;
+  visibility: ChallengeVisibility;
 }
 
 interface ChallengeDetailRow {
@@ -19,6 +28,7 @@ interface ChallengeDetailRow {
   created_by: string | null;
   starts_at: string;
   created_at: string;
+  visibility: ChallengeVisibility;
 }
 
 // Full row shape of challenge_participant_status (0005_challenge_completion.sql)
@@ -57,7 +67,7 @@ interface ParticipantStatusRow extends ParticipantRow {
 export async function getChallenges(): Promise<Challenge[]> {
   const { data: auth } = await supabase.auth.getUser();
   const [{ data: challengeRows, error: cErr }, { data: participantRows, error: pErr }] = await Promise.all([
-    supabase.from('challenges').select('id, title, subtitle, goal_value, starts_at'),
+    supabase.from('challenges').select('id, title, subtitle, goal_value, starts_at, visibility'),
     supabase.from('challenge_participant_status').select('challenge_id, user_id, progress, status'),
   ]);
   if (cErr) throw cErr;
@@ -82,6 +92,7 @@ export async function getChallenges(): Promise<Challenge[]> {
       progress: mine ? Math.min(1, mine.progress / row.goal_value) : 0,
       participants: participants.length,
       startsAt: row.starts_at,
+      visibility: row.visibility,
     };
   });
 }
@@ -104,13 +115,15 @@ export async function joinChallenge(challengeId: string): Promise<void> {
 // shared window start — see 0015_scheduled_challenges.sql. Omitted entirely
 // (not even sent as null) when not provided, so the SQL-side
 // `default current_date` applies rather than computing "today" in JS and
-// risking a client/server clock mismatch.
+// risking a client/server clock mismatch. `visibility` (0020_challenge_
+// visibility_invites.sql) defaults server-side to 'public' the same way.
 export async function createChallenge(
   title: string,
   goalType: ChallengeGoalType,
   goalValue: number,
   durationDays: number,
   startsAt?: string,
+  visibility?: ChallengeVisibility,
 ): Promise<string> {
   const { data, error } = await supabase.rpc('create_challenge', {
     p_title: title,
@@ -118,6 +131,7 @@ export async function createChallenge(
     p_goal_value: goalValue,
     p_duration_days: durationDays,
     ...(startsAt ? { p_starts_at: startsAt } : {}),
+    ...(visibility ? { p_visibility: visibility } : {}),
   });
   if (error) throw error;
   return data as string;
@@ -181,6 +195,7 @@ export async function getChallengeDetail(challengeId: string): Promise<Challenge
     startsAt: row.starts_at,
     createdAt: row.created_at,
     isOwner: !!auth.user && auth.user.id === row.created_by,
+    visibility: row.visibility,
     members,
   };
 }
@@ -197,5 +212,65 @@ export async function updateChallenge(challengeId: string, title: string, subtit
 
 export async function deleteChallenge(challengeId: string): Promise<void> {
   const { error } = await supabase.rpc('delete_challenge', { p_challenge_id: challengeId });
+  if (error) throw error;
+}
+
+interface ChallengeInviteRow {
+  challenge_id: string;
+  invited_by: string;
+  created_at: string;
+}
+
+/** Pending invites for the signed-in user — see 0020_challenge_visibility_invites.sql. Plain client-side join, same pattern as getChallengeDetail(). */
+export async function getChallengeInvites(): Promise<ChallengeInvite[]> {
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return [];
+
+  const { data: inviteRows, error: iErr } = await supabase
+    .from('challenge_invites')
+    .select('challenge_id, invited_by, created_at')
+    .eq('invited_user_id', auth.user.id);
+  if (iErr) throw iErr;
+
+  const rows = (inviteRows as ChallengeInviteRow[] | null) ?? [];
+  if (rows.length === 0) return [];
+
+  const challengeIds = [...new Set(rows.map((r) => r.challenge_id))];
+  const inviterIds = [...new Set(rows.map((r) => r.invited_by))];
+
+  const [{ data: challengeRows, error: cErr }, { data: profileRows, error: pErr }] = await Promise.all([
+    supabase.from('challenges').select('id, title').in('id', challengeIds),
+    supabase.from('profiles').select('id, display_name').in('id', inviterIds),
+  ]);
+  if (cErr) throw cErr;
+  if (pErr) throw pErr;
+
+  const titleById = new Map(
+    ((challengeRows as { id: string; title: string }[] | null) ?? []).map((c) => [c.id, c.title]),
+  );
+  const nameById = new Map(
+    ((profileRows as { id: string; display_name: string }[] | null) ?? []).map((p) => [p.id, p.display_name]),
+  );
+
+  return rows.map((r) => ({
+    challengeId: r.challenge_id,
+    challengeTitle: titleById.get(r.challenge_id) ?? 'A challenge',
+    invitedBy: r.invited_by,
+    invitedByName: nameById.get(r.invited_by) ?? 'Someone',
+    createdAt: r.created_at,
+  }));
+}
+
+/** Creator-only — see 0020_challenge_visibility_invites.sql for the accepted-friends-only restriction. */
+export async function inviteToChallenge(challengeId: string, friendId: string): Promise<void> {
+  const { error } = await supabase.rpc('invite_to_challenge', { p_challenge_id: challengeId, p_friend_id: friendId });
+  if (error) throw error;
+}
+
+export async function respondToChallengeInvite(challengeId: string, accept: boolean): Promise<void> {
+  const { error } = await supabase.rpc('respond_to_challenge_invite', {
+    p_challenge_id: challengeId,
+    p_accept: accept,
+  });
   if (error) throw error;
 }

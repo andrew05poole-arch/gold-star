@@ -51,6 +51,7 @@ export const challenges: Challenge[] = [
     progress: 0.66,
     participants: 1,
     startsAt: '2026-01-01',
+    visibility: 'public',
   },
   {
     id: 'c_1',
@@ -60,6 +61,7 @@ export const challenges: Challenge[] = [
     progress: 0,
     participants: 14,
     startsAt: '2026-01-01',
+    visibility: 'public',
   },
   {
     id: 'c_2',
@@ -69,6 +71,7 @@ export const challenges: Challenge[] = [
     progress: 0,
     participants: 8,
     startsAt: '2026-01-01',
+    visibility: 'public',
   },
   {
     id: 'c_3',
@@ -78,6 +81,7 @@ export const challenges: Challenge[] = [
     progress: 0,
     participants: 23,
     startsAt: '2026-01-01',
+    visibility: 'public',
   },
 ];
 
