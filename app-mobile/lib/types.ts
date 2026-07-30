@@ -81,6 +81,9 @@ export type ChallengeGoalType = 'stepsPerDay' | 'totalSteps' | 'daysStreak';
  */
 export type ChallengeStatus = 'upcoming' | 'active' | 'completed' | 'expired';
 
+/** Mirrors `challenges.visibility` in supabase/migrations/0020_challenge_visibility_invites.sql. */
+export type ChallengeVisibility = 'public' | 'invite_only';
+
 export interface Challenge {
   id: string;
   title: string;
@@ -90,6 +93,7 @@ export interface Challenge {
   progress: number; // 0..1, used when variant === 'active'
   participants: number;
   startsAt: string; // local date key; in the future for a scheduled/"queued" challenge
+  visibility: ChallengeVisibility;
 }
 
 /** One participant's own progress within a challenge, for the detail screen's member leaderboard. See app/challenge/[id].tsx. */
@@ -117,7 +121,17 @@ export interface ChallengeDetail {
   startsAt: string;
   createdAt: string;
   isOwner: boolean;
+  visibility: ChallengeVisibility;
   members: ChallengeMember[]; // ranked by progress, descending
+}
+
+/** A pending invite to an invite-only challenge — see app/(tabs)/streaks.tsx's "Invited" section. */
+export interface ChallengeInvite {
+  challengeId: string;
+  challengeTitle: string;
+  invitedBy: string;
+  invitedByName: string;
+  createdAt: string;
 }
 
 /** One cell in the streak calendar strip. */
