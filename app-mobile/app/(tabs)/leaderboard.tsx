@@ -25,9 +25,14 @@ import { Text } from '@/components/Text';
 import type { Friend, PendingFriendRequest, User } from '@/lib/types';
 
 type Scope = 'friends' | 'city' | 'country' | 'global';
+type LeaderboardView = 'friends' | 'public';
 
-const SCOPES: { key: Scope; label: string }[] = [
+const VIEWS: { key: LeaderboardView; label: string }[] = [
   { key: 'friends', label: 'Friends' },
+  { key: 'public', label: 'Public' },
+];
+
+const PUBLIC_SCOPES: { key: Scope; label: string }[] = [
   { key: 'city', label: 'City' },
   { key: 'country', label: 'Country' },
   { key: 'global', label: 'Global' },
@@ -35,6 +40,7 @@ const SCOPES: { key: Scope; label: string }[] = [
 
 export default function Leaderboard() {
   const { session } = useAuth();
+  const [view, setView] = useState<LeaderboardView>('friends');
   const [scope, setScope] = useState<Scope>('friends');
   const [profile, setProfile] = useState<User | null>(null);
   const [leaderboard, setLeaderboard] = useState<Friend[]>([]);
@@ -72,13 +78,25 @@ export default function Leaderboard() {
 
   const refresh = useCallback(() => {
     refreshProfile();
-    if (scope === 'friends') {
+    if (view === 'friends') {
       getPendingFriendRequests().then(setPendingRequests).catch(() => {});
     }
-  }, [refreshProfile, scope]);
+  }, [refreshProfile, view]);
 
   useEffect(refresh, [refresh]);
   useEffect(refreshLeaderboard, [refreshLeaderboard]);
+
+  function handleChangeView(next: LeaderboardView) {
+    if (next === view) return;
+    setView(next);
+    if (next === 'friends') {
+      setScope('friends');
+    } else if (scope === 'friends') {
+      // First time switching to Public this session — default to Global
+      // (always available, unlike City/Country which need a set location).
+      setScope('global');
+    }
+  }
 
   function handleChangeScope(next: Scope) {
     if (next === scope) return;
@@ -160,37 +178,54 @@ export default function Leaderboard() {
       </View>
 
       <View style={styles.scopeSelector}>
-        {SCOPES.map(({ key, label }) => {
-          const active = key === scope;
-          const disabled = (key === 'city' && !profile?.city) || (key === 'country' && !profile?.country);
+        {VIEWS.map(({ key, label }) => {
+          const active = key === view;
           return (
             <TouchableOpacity
               key={key}
-              style={[styles.scopeOption, active && styles.scopeOptionActive, disabled && styles.scopeOptionDisabled]}
-              onPress={() => handleChangeScope(key)}
-              disabled={disabled}
+              style={[styles.scopeOption, active && styles.scopeOptionActive]}
+              onPress={() => handleChangeView(key)}
             >
-              <Text
-                style={[
-                  styles.scopeOptionText,
-                  active && styles.scopeOptionTextActive,
-                  disabled && styles.scopeOptionTextDisabled,
-                ]}
-              >
-                {label}
-              </Text>
+              <Text style={[styles.scopeOptionText, active && styles.scopeOptionTextActive]}>{label}</Text>
             </TouchableOpacity>
           );
         })}
       </View>
-      {scope === 'city' && !profile?.city && (
+
+      {view === 'public' && (
+        <View style={styles.scopeSelector}>
+          {PUBLIC_SCOPES.map(({ key, label }) => {
+            const active = key === scope;
+            const disabled = (key === 'city' && !profile?.city) || (key === 'country' && !profile?.country);
+            return (
+              <TouchableOpacity
+                key={key}
+                style={[styles.scopeOption, active && styles.scopeOptionActive, disabled && styles.scopeOptionDisabled]}
+                onPress={() => handleChangeScope(key)}
+                disabled={disabled}
+              >
+                <Text
+                  style={[
+                    styles.scopeOptionText,
+                    active && styles.scopeOptionTextActive,
+                    disabled && styles.scopeOptionTextDisabled,
+                  ]}
+                >
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+      {view === 'public' && scope === 'city' && !profile?.city && (
         <Text style={styles.scopeHint}>Set your city on your Profile to see local rankings.</Text>
       )}
-      {scope === 'country' && !profile?.country && (
+      {view === 'public' && scope === 'country' && !profile?.country && (
         <Text style={styles.scopeHint}>Set your country on your Profile to see national rankings.</Text>
       )}
 
-      {scope === 'friends' && pendingRequests.length > 0 && (
+      {view === 'friends' && pendingRequests.length > 0 && (
         <View style={styles.requests}>
           <Text style={styles.requestsTitle}>Friend requests</Text>
           {pendingRequests.map((req) => (
@@ -225,12 +260,12 @@ export default function Leaderboard() {
             key={friend.id}
             friend={friend}
             isCurrentUser={friend.id === session?.user.id}
-            onLongPress={scope === 'friends' ? () => handleRemoveFriend(friend) : undefined}
+            onLongPress={view === 'friends' ? () => handleRemoveFriend(friend) : undefined}
           />
         ))}
       </View>
 
-      {scope === 'friends' && (
+      {view === 'friends' && (
         <View style={styles.inviteCard}>
           <Text style={styles.inviteTitle}>More friends = more fun</Text>
           <Text style={styles.inviteSub}>Invite friends to climb the league together.</Text>
@@ -248,7 +283,7 @@ export default function Leaderboard() {
               />
               {inviteError && <Text style={styles.inviteError}>{inviteError}</Text>}
               <PrimaryButton
-                label="Send request"
+                label="Send friend request"
                 onPress={handleInvite}
                 loading={inviting}
                 disabled={!inviteEmail.includes('@')}
