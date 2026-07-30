@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "app-mobile-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "app-mobile", "run", "web"],
+      "port": 8081,
+      "autoPort": true
+    }
+  ]
+}
