@@ -19,6 +19,12 @@ interface ReactionCountRow {
   reacted_by_me: boolean;
 }
 
+interface ReshareCountRow {
+  event_id: string;
+  reshare_count: number;
+  reshared_by_me: boolean;
+}
+
 interface CommentRow {
   id: string;
   user_id: string;
@@ -30,10 +36,11 @@ interface CommentRow {
 }
 
 /**
- * Friends' (+ own) activity feed, newest first, with reaction counts merged
- * in. `get_friend_activity_feed` (0008_activity_events.sql) doesn't include
- * reaction data itself, so this batches a follow-up call to
- * `get_activity_reaction_counts` (0011_activity_reactions.sql) for every
+ * Friends' (+ own) activity feed, newest first, with reaction and reshare
+ * counts merged in. `get_friend_activity_feed` (0008_activity_events.sql)
+ * doesn't include either itself, so this batches follow-up calls to
+ * `get_activity_reaction_counts` (0011_activity_reactions.sql) and
+ * `get_activity_reshare_counts` (0023_activity_reshares.sql) for every
  * returned event id rather than the caller doing N+1 round trips.
  */
 export async function getFriendActivityFeed(): Promise<ActivityEvent[]> {
@@ -45,11 +52,14 @@ export async function getFriendActivityFeed(): Promise<ActivityEvent[]> {
   const rows = (data as ActivityFeedRow[] | null) ?? [];
   if (rows.length === 0) return [];
 
-  const counts = await getReactionCounts(rows.map((r) => r.id));
-  const countsById = new Map(counts.map((c) => [c.eventId, c]));
+  const eventIds = rows.map((r) => r.id);
+  const [reactionCounts, reshareCounts] = await Promise.all([getReactionCounts(eventIds), getReshareCounts(eventIds)]);
+  const reactionsById = new Map(reactionCounts.map((c) => [c.eventId, c]));
+  const resharesById = new Map(reshareCounts.map((c) => [c.eventId, c]));
 
   return rows.map((row) => {
-    const counted = countsById.get(row.id);
+    const reacted = reactionsById.get(row.id);
+    const reshared = resharesById.get(row.id);
     return {
       id: row.id,
       userId: row.user_id,
@@ -59,8 +69,10 @@ export async function getFriendActivityFeed(): Promise<ActivityEvent[]> {
       eventType: row.event_type,
       payload: row.payload ?? {},
       createdAt: row.created_at,
-      reactionCount: counted?.reactionCount ?? 0,
-      reactedByMe: counted?.reactedByMe ?? false,
+      reactionCount: reacted?.reactionCount ?? 0,
+      reactedByMe: reacted?.reactedByMe ?? false,
+      reshareCount: reshared?.reshareCount ?? 0,
+      resharedByMe: reshared?.resharedByMe ?? false,
     };
   });
 }
@@ -84,6 +96,35 @@ export async function getReactionCounts(
     eventId: row.event_id,
     reactionCount: Number(row.reaction_count),
     reactedByMe: row.reacted_by_me,
+  }));
+}
+
+/**
+ * Reshares (or un-reshares) an event to the caller's own feed. Only
+ * `streak_milestone` / `challenge_completed` / `challenge_joined` are
+ * reshareable, and a challenge-linked event tied to an invite-only
+ * challenge is rejected — both enforced server-side in `toggle_reshare`
+ * (0023_activity_reshares.sql); the UI only shows the button for eligible
+ * types as a nicety, not the actual enforcement.
+ */
+export async function toggleReshare(eventId: string): Promise<{ reshared: boolean; reshardEventId: string | null }> {
+  const { data, error } = await supabase.rpc('toggle_reshare', { p_event_id: eventId });
+  if (error) throw error;
+  const row = (data as { reshared: boolean; reshared_event_id: string | null }[] | null)?.[0];
+  return { reshared: row?.reshared ?? false, reshardEventId: row?.reshared_event_id ?? null };
+}
+
+/** Batch reshare counts + "did I reshare" for a page of event ids. */
+export async function getReshareCounts(
+  eventIds: string[],
+): Promise<{ eventId: string; reshareCount: number; resharedByMe: boolean }[]> {
+  if (eventIds.length === 0) return [];
+  const { data, error } = await supabase.rpc('get_activity_reshare_counts', { p_event_ids: eventIds });
+  if (error) throw error;
+  return ((data as ReshareCountRow[] | null) ?? []).map((row) => ({
+    eventId: row.event_id,
+    reshareCount: Number(row.reshare_count),
+    resharedByMe: row.reshared_by_me,
   }));
 }
 

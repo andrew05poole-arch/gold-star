@@ -142,10 +142,15 @@ export interface StreakDay {
   isToday: boolean;
 }
 
-/** Mirrors the `event_type` check constraint on `activity_events` (0008_activity_events.sql). */
-export type ActivityEventType = 'streak_milestone' | 'challenge_completed' | 'challenge_joined' | 'friend_added';
+/** Mirrors the `event_type` check constraint on `activity_events` (0008_activity_events.sql, extended by 0023_activity_reshares.sql). */
+export type ActivityEventType =
+  | 'streak_milestone'
+  | 'challenge_completed'
+  | 'challenge_joined'
+  | 'friend_added'
+  | 'reshare';
 
-/** A row from `get_friend_activity_feed` (0008_activity_events.sql), plus reaction state layered on client-side. */
+/** A row from `get_friend_activity_feed` (0008_activity_events.sql), plus reaction/reshare state layered on client-side. */
 export interface ActivityEvent {
   id: string;
   userId: string;
@@ -157,6 +162,8 @@ export interface ActivityEvent {
   createdAt: string;
   reactionCount: number;
   reactedByMe: boolean;
+  reshareCount: number;
+  resharedByMe: boolean;
 }
 
 /** A row from `get_activity_comments` (0012_activity_comments.sql). */
