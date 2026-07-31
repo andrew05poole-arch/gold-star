@@ -3,7 +3,8 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily, spacing } from '@/lib/theme';
-import { followUser, getPublicProfile, unfollowUser } from '@/lib/api/profile';
+import { followUser, getPublicProfile, sendFriendRequest, unfollowUser } from '@/lib/api/profile';
+import { acceptFriendRequest, declineFriendRequest } from '@/lib/api/leaderboard';
 import { errorMessage } from '@/lib/errorMessage';
 import { useAuth } from '@/lib/useAuth';
 import { ScreenContainer } from '@/components/ScreenContainer';
@@ -34,6 +35,7 @@ export default function PublicProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [followLoading, setFollowLoading] = useState(false);
+  const [friendActionLoading, setFriendActionLoading] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -67,6 +69,37 @@ export default function PublicProfileScreen() {
     }
   }
 
+  async function handleSendFriendRequest() {
+    if (!profile || !userId) return;
+    setFriendActionLoading(true);
+    try {
+      await sendFriendRequest(userId);
+      setProfile((prev) => (prev ? { ...prev, friendshipStatus: 'pending_sent' } : prev));
+    } catch {
+      // Leave state as-is so the user can retry.
+    } finally {
+      setFriendActionLoading(false);
+    }
+  }
+
+  async function handleRespondToFriendRequest(accept: boolean) {
+    if (!profile || !userId) return;
+    setFriendActionLoading(true);
+    try {
+      if (accept) {
+        await acceptFriendRequest(userId);
+        setProfile((prev) => (prev ? { ...prev, friendshipStatus: 'accepted', friendCount: prev.friendCount + 1 } : prev));
+      } else {
+        await declineFriendRequest(userId);
+        setProfile((prev) => (prev ? { ...prev, friendshipStatus: 'none' } : prev));
+      }
+    } catch {
+      // Leave state as-is so the user can retry.
+    } finally {
+      setFriendActionLoading(false);
+    }
+  }
+
   return (
     <ScreenContainer>
       <View style={styles.headerRow}>
@@ -97,18 +130,56 @@ export default function PublicProfileScreen() {
               <Text variant="title">{profile.displayName}</Text>
               <Text variant="caption">Member since {profile.memberSince.slice(0, 10)}</Text>
               <Text variant="caption">
-                {profile.followerCount} {profile.followerCount === 1 ? 'follower' : 'followers'}
+                {profile.friendCount} {profile.friendCount === 1 ? 'friend' : 'friends'} · {profile.followerCount}{' '}
+                {profile.followerCount === 1 ? 'follower' : 'followers'}
               </Text>
             </View>
           </Card>
 
           {profile.id !== session?.user.id && (
-            <PrimaryButton
-              label={profile.isFollowing ? 'Following' : 'Follow'}
-              variant={profile.isFollowing ? 'ghost' : 'primary'}
-              onPress={handleToggleFollow}
-              loading={followLoading}
-            />
+            <>
+              <View style={styles.actionsRow}>
+                <PrimaryButton
+                  label={profile.isFollowing ? 'Following' : 'Follow'}
+                  variant={profile.isFollowing ? 'ghost' : 'primary'}
+                  onPress={handleToggleFollow}
+                  loading={followLoading}
+                  style={styles.actionBtn}
+                />
+                {profile.friendshipStatus === 'none' && (
+                  <PrimaryButton
+                    label="Add friend"
+                    onPress={handleSendFriendRequest}
+                    loading={friendActionLoading}
+                    style={styles.actionBtn}
+                  />
+                )}
+                {profile.friendshipStatus === 'pending_sent' && (
+                  <PrimaryButton label="Request sent" variant="ghost" disabled style={styles.actionBtn} />
+                )}
+                {profile.friendshipStatus === 'accepted' && (
+                  <PrimaryButton label="Friends" variant="ghost" disabled style={styles.actionBtn} />
+                )}
+              </View>
+
+              {profile.friendshipStatus === 'pending_received' && (
+                <View style={styles.actionsRow}>
+                  <PrimaryButton
+                    label="Accept friend request"
+                    onPress={() => handleRespondToFriendRequest(true)}
+                    loading={friendActionLoading}
+                    style={styles.actionBtn}
+                  />
+                  <PrimaryButton
+                    label="Decline"
+                    variant="ghost"
+                    onPress={() => handleRespondToFriendRequest(false)}
+                    disabled={friendActionLoading}
+                    style={styles.actionBtn}
+                  />
+                </View>
+              )}
+            </>
           )}
 
           {!!profile.bio && (
@@ -157,6 +228,8 @@ const styles = StyleSheet.create({
   centerBox: { alignItems: 'center', paddingVertical: spacing.xxl },
   headerCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   headerInfo: { gap: spacing.xs },
+  actionsRow: { flexDirection: 'row', gap: spacing.sm },
+  actionBtn: { flex: 1 },
   statsRow: { flexDirection: 'row', gap: spacing.sm },
   statCard: { flex: 1, gap: spacing.xs },
   section: { gap: spacing.sm },

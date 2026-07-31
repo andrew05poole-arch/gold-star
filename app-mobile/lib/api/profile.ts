@@ -3,7 +3,7 @@
  * source of truth for "has this user finished onboarding?" — see app/index.tsx.
  */
 import { supabase } from '../supabase';
-import type { ChallengeGoalType, ChallengeStatus, PublicChallengeHistoryItem, PublicProfile, User } from '../types';
+import type { ChallengeGoalType, ChallengeStatus, FriendshipStatus, PublicChallengeHistoryItem, PublicProfile, SocialCounts, User } from '../types';
 
 interface ProfileRow {
   id: string;
@@ -171,6 +171,27 @@ interface ChallengeTitleRow {
   goal_value: number;
 }
 
+interface FriendshipRow {
+  user_id: string;
+  friend_id: string;
+  status: string;
+}
+
+/**
+ * Derives the caller's relationship to `targetId` from the raw friendship
+ * row(s) between them. `friendships`' SELECT policy (0001_init.sql) only
+ * ever returns rows the caller is part of, so an accepted friendship always
+ * comes back as (at least) one row here — no separate "am I friends with
+ * them" query needed.
+ */
+function deriveFriendshipStatus(selfId: string | undefined, targetId: string, rows: FriendshipRow[]): FriendshipStatus {
+  if (!selfId) return 'none';
+  if (rows.some((r) => r.status === 'accepted')) return 'accepted';
+  if (rows.some((r) => r.status === 'pending' && r.user_id === selfId && r.friend_id === targetId)) return 'pending_sent';
+  if (rows.some((r) => r.status === 'pending' && r.user_id === targetId && r.friend_id === selfId)) return 'pending_received';
+  return 'none';
+}
+
 /**
  * Another user's public profile: name/avatar/bio, streak, and challenge
  * history — everything already readable by any authenticated user
@@ -188,6 +209,8 @@ export async function getPublicProfile(userId: string): Promise<PublicProfile> {
     { data: statusRows, error: cErr },
     { count: followerCount, error: fErr },
     { data: myFollowRow, error: ifErr },
+    { data: friendCountData, error: fcErr },
+    { data: friendshipRows, error: fsErr },
   ] = await Promise.all([
     supabase.from('profiles').select('id, display_name, avatar_color, avatar_url, bio, created_at').eq('id', userId).single(),
     supabase.from('streaks').select('current_length, longest_length').eq('user_id', userId).maybeSingle(),
@@ -199,12 +222,21 @@ export async function getPublicProfile(userId: string): Promise<PublicProfile> {
     auth.user
       ? supabase.from('follows').select('follower_id').eq('follower_id', auth.user.id).eq('followee_id', userId).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
+    supabase.rpc('get_friend_count', { p_user_id: userId }),
+    auth.user
+      ? supabase
+          .from('friendships')
+          .select('user_id, friend_id, status')
+          .or(`and(user_id.eq.${auth.user.id},friend_id.eq.${userId}),and(user_id.eq.${userId},friend_id.eq.${auth.user.id})`)
+      : Promise.resolve({ data: [], error: null }),
   ]);
   if (pErr) throw pErr;
   if (sErr) throw sErr;
   if (cErr) throw cErr;
   if (fErr) throw fErr;
   if (ifErr) throw ifErr;
+  if (fcErr) throw fcErr;
+  if (fsErr) throw fsErr;
 
   const statusRowsTyped = (statusRows as PublicChallengeStatusRow[] | null) ?? [];
   const challengeIds = statusRowsTyped.map((r) => r.challenge_id);
@@ -250,7 +282,40 @@ export async function getPublicProfile(userId: string): Promise<PublicProfile> {
     challengeHistory,
     followerCount: followerCount ?? 0,
     isFollowing: !!myFollowRow,
+    friendCount: (friendCountData as number | null) ?? 0,
+    friendshipStatus: deriveFriendshipStatus(auth.user?.id, userId, (friendshipRows as FriendshipRow[] | null) ?? []),
   };
+}
+
+/** Friends/followers/following counts for the signed-in user's own profile tab (app/(tabs)/profile.tsx). */
+export async function getMySocialCounts(): Promise<SocialCounts> {
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return { friends: 0, followers: 0, following: 0 };
+
+  const [
+    { data: friendCountData, error: fcErr },
+    { count: followerCount, error: flErr },
+    { count: followingCount, error: fgErr },
+  ] = await Promise.all([
+    supabase.rpc('get_friend_count', { p_user_id: auth.user.id }),
+    supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('followee_id', auth.user.id),
+    supabase.from('follows').select('followee_id', { count: 'exact', head: true }).eq('follower_id', auth.user.id),
+  ]);
+  if (fcErr) throw fcErr;
+  if (flErr) throw flErr;
+  if (fgErr) throw fgErr;
+
+  return {
+    friends: (friendCountData as number | null) ?? 0,
+    followers: followerCount ?? 0,
+    following: followingCount ?? 0,
+  };
+}
+
+/** Sends a friend request directly to a user id — see 0022_friend_request_from_profile.sql. */
+export async function sendFriendRequest(userId: string): Promise<void> {
+  const { error } = await supabase.rpc('send_friend_request', { p_friend_id: userId });
+  if (error) throw error;
 }
 
 export async function followUser(userId: string): Promise<void> {

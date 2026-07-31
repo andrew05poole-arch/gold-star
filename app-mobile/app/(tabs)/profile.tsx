@@ -4,14 +4,14 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily, radii, spacing } from '@/lib/theme';
 import { useAuth, signOut } from '@/lib/useAuth';
-import { getMyProfile, updateBio, updateLocation, uploadAvatar } from '@/lib/api/profile';
+import { getMyProfile, getMySocialCounts, updateBio, updateLocation, uploadAvatar } from '@/lib/api/profile';
 import { errorMessage } from '@/lib/errorMessage';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/Card';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Text } from '@/components/Text';
-import type { User } from '@/lib/types';
+import type { SocialCounts, User } from '@/lib/types';
 
 const BIO_MAX_LENGTH = 160;
 
@@ -30,6 +30,7 @@ export default function Profile() {
   const [bioError, setBioError] = useState<string | null>(null);
   const [bioSaved, setBioSaved] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [socialCounts, setSocialCounts] = useState<SocialCounts | null>(null);
 
   useEffect(() => {
     getMyProfile()
@@ -41,6 +42,7 @@ export default function Profile() {
         setBio(p?.bio ?? '');
       })
       .catch(() => {});
+    getMySocialCounts().then(setSocialCounts).catch(() => {});
   }, []);
 
   async function handleSignOut() {
@@ -136,6 +138,23 @@ export default function Profile() {
           {!!email && <Text style={styles.email}>{email}</Text>}
         </View>
       </Card>
+
+      {socialCounts && (
+        <Card style={styles.statsCard}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{socialCounts.friends}</Text>
+            <Text variant="caption">{socialCounts.friends === 1 ? 'Friend' : 'Friends'}</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{socialCounts.followers}</Text>
+            <Text variant="caption">{socialCounts.followers === 1 ? 'Follower' : 'Followers'}</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{socialCounts.following}</Text>
+            <Text variant="caption">Following</Text>
+          </View>
+        </Card>
+      )}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>About</Text>
@@ -238,6 +257,9 @@ const styles = StyleSheet.create({
   accountInfo: { gap: spacing.xs },
   name: { fontFamily: fontFamily.extraBold, fontSize: 18, color: colors.textPrimary },
   email: { fontFamily: fontFamily.semibold, fontSize: 14, color: colors.textSecondary },
+  statsCard: { flexDirection: 'row' },
+  statItem: { flex: 1, alignItems: 'center', gap: 2 },
+  statValue: { fontFamily: fontFamily.extraBold, fontSize: 20, color: colors.textPrimary },
   section: { gap: spacing.sm, marginTop: spacing.md },
   sectionTitle: { fontFamily: fontFamily.extraBold, fontSize: 18, color: colors.textPrimary },
   aboutCard: { gap: spacing.xs },

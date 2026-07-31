@@ -255,6 +255,9 @@ export interface PublicChallengeHistoryItem {
   status: ChallengeStatus;
 }
 
+/** The signed-in caller's relationship to a profile's owner — see get_friend_request logic in 0022_friend_request_from_profile.sql. */
+export type FriendshipStatus = 'none' | 'pending_sent' | 'pending_received' | 'accepted';
+
 export interface PublicProfile {
   id: string;
   displayName: string;
@@ -267,4 +270,13 @@ export interface PublicProfile {
   challengeHistory: PublicChallengeHistoryItem[]; // most recently joined first
   followerCount: number;
   isFollowing: boolean; // true if the signed-in caller follows this profile
+  friendCount: number;
+  friendshipStatus: FriendshipStatus;
+}
+
+/** Friends / followers / following counts for the signed-in user's own profile tab. */
+export interface SocialCounts {
+  friends: number;
+  followers: number;
+  following: number;
 }
