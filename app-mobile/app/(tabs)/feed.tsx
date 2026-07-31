@@ -4,17 +4,29 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily, radii, spacing } from '@/lib/theme';
 import { formatRelativeTime } from '@/lib/format';
-import { getFriendActivityFeed, toggleReaction, getComments, addComment } from '@/lib/api/feed';
+import { getFriendActivityFeed, toggleReaction, toggleReshare, getComments, addComment } from '@/lib/api/feed';
 import { useAuth } from '@/lib/useAuth';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { Card } from '@/components/Card';
 import { Avatar } from '@/components/Avatar';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Text } from '@/components/Text';
-import type { ActivityComment, ActivityEvent } from '@/lib/types';
+import type { ActivityComment, ActivityEvent, ActivityEventType } from '@/lib/types';
+
+/** Must stay in sync with toggle_reshare's allowlist (0023_activity_reshares.sql) — kept here purely as a UX nicety (hide the button where it would just error), not the actual enforcement. */
+const RESHAREABLE_TYPES: ActivityEventType[] = ['streak_milestone', 'challenge_completed', 'challenge_joined'];
+
+const CHALLENGE_LINK_TYPES: ActivityEventType[] = ['challenge_completed', 'challenge_joined'];
+
+/** A subset of ActivityEvent that describeEvent/eventIcon need — lets a reshare's nested "original" snapshot (from payload, not a real ActivityEvent) reuse the same rendering logic. */
+interface DescribableEvent {
+  eventType: ActivityEventType;
+  payload: Record<string, unknown>;
+  displayName: string;
+}
 
 /** Human-readable description of an activity event, derived from event_type + payload. */
-function describeEvent(event: ActivityEvent, isSelf: boolean): string {
+function describeEvent(event: DescribableEvent, isSelf: boolean): string {
   const who = isSelf ? 'You' : event.displayName;
   switch (event.eventType) {
     case 'streak_milestone': {
@@ -31,12 +43,16 @@ function describeEvent(event: ActivityEvent, isSelf: boolean): string {
     }
     case 'friend_added':
       return `${who} made a new friend.`;
+    case 'reshare': {
+      const originalName = (event.payload.original_display_name as string | undefined) ?? 'someone';
+      return `${who} reshared ${originalName}'s post.`;
+    }
     default:
       return `${who} did something new.`;
   }
 }
 
-function eventIcon(eventType: ActivityEvent['eventType']): keyof typeof Ionicons.glyphMap {
+function eventIcon(eventType: ActivityEventType): keyof typeof Ionicons.glyphMap {
   switch (eventType) {
     case 'streak_milestone':
       return 'flame';
@@ -46,18 +62,35 @@ function eventIcon(eventType: ActivityEvent['eventType']): keyof typeof Ionicons
       return 'flag';
     case 'friend_added':
       return 'people';
+    case 'reshare':
+      return 'repeat';
     default:
       return 'star';
   }
+}
+
+/** Small tappable "View challenge" row, shown under challenge-linked events (original or reshared) once 0023's challenge_id payload addition is present. */
+function ChallengeLink({ challengeId }: { challengeId?: string }) {
+  if (!challengeId) return null;
+  return (
+    <TouchableOpacity
+      style={styles.challengeLink}
+      onPress={() => router.push({ pathname: '/challenge/[id]', params: { id: challengeId } })}
+    >
+      <Text style={styles.challengeLinkText}>View challenge</Text>
+      <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+    </TouchableOpacity>
+  );
 }
 
 interface FeedItemProps {
   event: ActivityEvent;
   isSelf: boolean;
   onToggleReaction: (eventId: string) => void;
+  onToggleReshare: (eventId: string) => void;
 }
 
-function FeedItem({ event, isSelf, onToggleReaction }: FeedItemProps) {
+function FeedItem({ event, isSelf, onToggleReaction, onToggleReshare }: FeedItemProps) {
   const { session } = useAuth();
   const myUserId = session?.user.id;
   const [expanded, setExpanded] = useState(false);
@@ -66,6 +99,10 @@ function FeedItem({ event, isSelf, onToggleReaction }: FeedItemProps) {
   const [commentCount, setCommentCount] = useState<number | null>(null);
   const [draft, setDraft] = useState('');
   const [posting, setPosting] = useState(false);
+
+  const originalEventType = event.payload.original_event_type as ActivityEventType | undefined;
+  const originalPayload = (event.payload.original_payload as Record<string, unknown> | undefined) ?? {};
+  const originalDisplayName = (event.payload.original_display_name as string | undefined) ?? 'StepLeague user';
 
   const loadComments = useCallback(() => {
     setLoadingComments(true);
@@ -118,6 +155,41 @@ function FeedItem({ event, isSelf, onToggleReaction }: FeedItemProps) {
         </View>
       </TouchableOpacity>
 
+      {CHALLENGE_LINK_TYPES.includes(event.eventType) && (
+        <ChallengeLink challengeId={event.payload.challenge_id as string | undefined} />
+      )}
+
+      {event.eventType === 'reshare' && originalEventType && (
+        <View style={styles.quotedCard}>
+          <TouchableOpacity
+            style={styles.quotedRow}
+            activeOpacity={0.7}
+            onPress={() =>
+              router.push({
+                pathname: '/profile/[userId]',
+                params: { userId: event.payload.original_user_id as string },
+              })
+            }
+          >
+            <Avatar
+              name={originalDisplayName}
+              color={(event.payload.original_avatar_color as string) ?? colors.rivalAccent}
+              photoUrl={event.payload.original_avatar_url as string | undefined}
+              size={32}
+            />
+            <View style={styles.descriptionRow}>
+              <Ionicons name={eventIcon(originalEventType)} size={12} color={colors.primary} />
+              <Text style={styles.quotedDescription}>
+                {describeEvent({ eventType: originalEventType, payload: originalPayload, displayName: originalDisplayName }, false)}
+              </Text>
+            </View>
+          </TouchableOpacity>
+          {CHALLENGE_LINK_TYPES.includes(originalEventType) && (
+            <ChallengeLink challengeId={originalPayload.challenge_id as string | undefined} />
+          )}
+        </View>
+      )}
+
       <View style={styles.actions}>
         <TouchableOpacity
           style={styles.actionBtn}
@@ -135,6 +207,16 @@ function FeedItem({ event, isSelf, onToggleReaction }: FeedItemProps) {
           <Ionicons name="chatbubble-outline" size={16} color={colors.textSecondary} />
           <Text style={styles.actionLabel}>{commentCount ?? ''} {commentCount === 1 ? 'comment' : 'comments'}</Text>
         </TouchableOpacity>
+        {RESHAREABLE_TYPES.includes(event.eventType) && (
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => onToggleReshare(event.id)}
+            accessibilityLabel={event.resharedByMe ? 'Un-reshare' : 'Reshare'}
+          >
+            <Ionicons name="repeat" size={18} color={event.resharedByMe ? colors.primary : colors.textSecondary} />
+            <Text style={styles.actionLabel}>{event.reshareCount}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {expanded && (
@@ -200,6 +282,15 @@ export default function Feed() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Reconciles after a reshare toggle without the full-screen loading state
+  // refresh() shows — reshared/un-reshared events need a genuine refetch
+  // (the new post's author info, or its removal, isn't derivable from local
+  // state alone), but that shouldn't replace the whole visible list with a
+  // spinner for what's a small, single-item action.
+  const refreshSilently = useCallback(() => {
+    getFriendActivityFeed().then(setEvents).catch(() => {});
+  }, []);
+
   useEffect(refresh, [refresh]);
 
   async function handleToggleReaction(eventId: string) {
@@ -214,6 +305,23 @@ export default function Feed() {
     try {
       const { reacted, reactionCount } = await toggleReaction(eventId);
       setEvents((prev) => prev.map((e) => (e.id === eventId ? { ...e, reactedByMe: reacted, reactionCount } : e)));
+    } catch {
+      setEvents(previous);
+    }
+  }
+
+  async function handleToggleReshare(eventId: string) {
+    const previous = events;
+    setEvents((prev) =>
+      prev.map((e) =>
+        e.id === eventId
+          ? { ...e, resharedByMe: !e.resharedByMe, reshareCount: e.reshareCount + (e.resharedByMe ? -1 : 1) }
+          : e,
+      ),
+    );
+    try {
+      await toggleReshare(eventId);
+      refreshSilently();
     } catch {
       setEvents(previous);
     }
@@ -254,6 +362,7 @@ export default function Feed() {
               event={event}
               isSelf={event.userId === session?.user.id}
               onToggleReaction={handleToggleReaction}
+              onToggleReshare={handleToggleReshare}
             />
           ))}
         </View>
@@ -275,6 +384,18 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: spacing.lg, marginTop: spacing.xs },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   actionLabel: { fontFamily: fontFamily.bold, fontSize: 13, color: colors.textSecondary },
+  challengeLink: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
+  challengeLinkText: { fontFamily: fontFamily.bold, fontSize: 12, color: colors.primary },
+  quotedCard: {
+    padding: spacing.sm,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    gap: spacing.xs,
+  },
+  quotedRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  quotedDescription: { flex: 1, fontFamily: fontFamily.semibold, fontSize: 13, color: colors.textPrimary },
   commentsSection: {
     marginTop: spacing.sm,
     paddingTop: spacing.sm,
