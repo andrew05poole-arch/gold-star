@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily, radii, spacing } from '@/lib/theme';
 import { useAuth, signOut } from '@/lib/useAuth';
 import { getMyProfile, getMySocialCounts, updateBio, updateLocation, uploadAvatar } from '@/lib/api/profile';
+import { getMyBadgeSummary } from '@/lib/api/badges';
 import { errorMessage } from '@/lib/errorMessage';
 import { showAlert } from '@/lib/alert';
 import { ScreenContainer } from '@/components/ScreenContainer';
@@ -13,7 +14,7 @@ import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/Card';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Text } from '@/components/Text';
-import type { SocialCounts, User } from '@/lib/types';
+import type { ChallengeBadgeSummary, SocialCounts, User } from '@/lib/types';
 
 const BIO_MAX_LENGTH = 160;
 
@@ -34,6 +35,7 @@ export default function Profile() {
   const [bioSaved, setBioSaved] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [socialCounts, setSocialCounts] = useState<SocialCounts | null>(null);
+  const [badges, setBadges] = useState<ChallengeBadgeSummary | null>(null);
 
   useEffect(() => {
     getMyProfile()
@@ -46,6 +48,7 @@ export default function Profile() {
       })
       .catch(() => {});
     getMySocialCounts().then(setSocialCounts).catch(() => {});
+    getMyBadgeSummary().then(setBadges).catch(() => {});
   }, []);
 
   async function handleSignOut() {
@@ -164,6 +167,29 @@ export default function Profile() {
         </Card>
       )}
 
+      {badges && (
+        <Card style={styles.badgesCard}>
+          <View style={styles.medalsRow}>
+            <View style={styles.medalItem}>
+              <Text style={styles.medalEmoji}>🥇</Text>
+              <Text style={styles.statValue}>{badges.gold}</Text>
+            </View>
+            <View style={styles.medalItem}>
+              <Text style={styles.medalEmoji}>🥈</Text>
+              <Text style={styles.statValue}>{badges.silver}</Text>
+            </View>
+            <View style={styles.medalItem}>
+              <Text style={styles.medalEmoji}>🥉</Text>
+              <Text style={styles.statValue}>{badges.bronze}</Text>
+            </View>
+          </View>
+          <Text style={styles.badgesSummaryText}>
+            {badges.competed} {badges.competed === 1 ? 'challenge' : 'challenges'} competed · {badges.totalPoints} pts ·{' '}
+            {badges.worldRank != null ? `World Rank #${badges.worldRank}` : 'Unranked'}
+          </Text>
+        </Card>
+      )}
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>About</Text>
         <Card style={styles.aboutCard}>
@@ -268,6 +294,16 @@ const styles = StyleSheet.create({
   statsCard: { flexDirection: 'row' },
   statItem: { flex: 1, alignItems: 'center', gap: 2 },
   statValue: { fontFamily: fontFamily.extraBold, fontSize: 20, color: colors.textPrimary },
+  badgesCard: { gap: spacing.sm },
+  medalsRow: { flexDirection: 'row' },
+  medalItem: { flex: 1, alignItems: 'center', gap: 2 },
+  medalEmoji: { fontSize: 24 },
+  badgesSummaryText: {
+    textAlign: 'center',
+    fontFamily: fontFamily.semibold,
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
   section: { gap: spacing.sm, marginTop: spacing.md },
   sectionTitle: { fontFamily: fontFamily.extraBold, fontSize: 18, color: colors.textPrimary },
   aboutCard: { gap: spacing.xs },

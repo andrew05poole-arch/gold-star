@@ -26,6 +26,8 @@ const STATUS_COLOR: Record<ChallengeStatus, string> = {
   expired: colors.textSecondary,
 };
 
+const MEDAL_EMOJI: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
+
 export default function ChallengeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -189,7 +191,9 @@ export default function ChallengeDetailScreen() {
                 onPress={m.isMe ? undefined : () => router.push({ pathname: '/profile/[userId]', params: { userId: m.userId } })}
               >
                 <View style={styles.memberRow}>
-                  <Text style={styles.rank}>#{i + 1}</Text>
+                  <Text style={styles.rank}>
+                    {m.medal && m.placement ? MEDAL_EMOJI[m.placement] : `#${i + 1}`}
+                  </Text>
                   <Avatar name={m.displayName} color={m.avatarColor} photoUrl={m.avatarUrl} size={36} />
                   <View style={styles.memberInfo}>
                     <Text style={styles.memberName}>{m.isMe ? `${m.displayName} (you)` : m.displayName}</Text>

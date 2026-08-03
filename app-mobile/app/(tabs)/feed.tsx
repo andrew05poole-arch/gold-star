@@ -13,10 +13,18 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { Text } from '@/components/Text';
 import type { ActivityComment, ActivityEvent, ActivityEventType } from '@/lib/types';
 
-/** Must stay in sync with toggle_reshare's allowlist (0023_activity_reshares.sql) — kept here purely as a UX nicety (hide the button where it would just error), not the actual enforcement. */
-const RESHAREABLE_TYPES: ActivityEventType[] = ['streak_milestone', 'challenge_completed', 'challenge_joined'];
+/** Must stay in sync with toggle_reshare's allowlist (0023/0026_*.sql) — kept here purely as a UX nicety (hide the button where it would just error), not the actual enforcement. */
+const RESHAREABLE_TYPES: ActivityEventType[] = [
+  'streak_milestone',
+  'challenge_completed',
+  'challenge_joined',
+  'challenge_placement',
+];
 
-const CHALLENGE_LINK_TYPES: ActivityEventType[] = ['challenge_completed', 'challenge_joined'];
+const CHALLENGE_LINK_TYPES: ActivityEventType[] = ['challenge_completed', 'challenge_joined', 'challenge_placement'];
+
+const MEDAL_EMOJI: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
+const PLACEMENT_ORDINAL: Record<number, string> = { 1: '1st', 2: '2nd', 3: '3rd' };
 
 /** A subset of ActivityEvent that describeEvent/eventIcon need — lets a reshare's nested "original" snapshot (from payload, not a real ActivityEvent) reuse the same rendering logic. */
 interface DescribableEvent {
@@ -47,6 +55,13 @@ function describeEvent(event: DescribableEvent, isSelf: boolean): string {
       const originalName = (event.payload.original_display_name as string | undefined) ?? 'someone';
       return `${who} reshared ${originalName}'s post.`;
     }
+    case 'challenge_placement': {
+      const title = event.payload.challenge_title;
+      const placement = event.payload.placement as number | undefined;
+      const medal = (placement && MEDAL_EMOJI[placement]) ?? '🏅';
+      const ordinal = (placement && PLACEMENT_ORDINAL[placement]) ?? `#${placement ?? '?'}`;
+      return `${medal} ${who} placed ${ordinal} in ${title ?? 'a challenge'}!`;
+    }
     default:
       return `${who} did something new.`;
   }
@@ -64,6 +79,8 @@ function eventIcon(eventType: ActivityEventType): keyof typeof Ionicons.glyphMap
       return 'people';
     case 'reshare':
       return 'repeat';
+    case 'challenge_placement':
+      return 'medal';
     default:
       return 'star';
   }

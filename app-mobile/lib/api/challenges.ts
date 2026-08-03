@@ -66,12 +66,17 @@ interface ParticipantStatusRow extends ParticipantRow {
 
 export async function getChallenges(): Promise<Challenge[]> {
   const { data: auth } = await supabase.auth.getUser();
-  const [{ data: challengeRows, error: cErr }, { data: participantRows, error: pErr }] = await Promise.all([
-    supabase.from('challenges').select('id, title, subtitle, goal_value, starts_at, visibility'),
-    supabase.from('challenge_participant_status').select('challenge_id, user_id, progress, status'),
-  ]);
+  const [{ data: challengeRows, error: cErr }, { data: participantRows, error: pErr }, { data: placementRows, error: plErr }] =
+    await Promise.all([
+      supabase.from('challenges').select('id, title, subtitle, goal_value, starts_at, visibility'),
+      supabase.from('challenge_participant_status').select('challenge_id, user_id, progress, status'),
+      auth.user
+        ? supabase.from('challenge_placements').select('challenge_id, placement, medal').eq('user_id', auth.user.id)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
   if (cErr) throw cErr;
   if (pErr) throw pErr;
+  if (plErr) throw plErr;
 
   const byChallenge = new Map<string, ParticipantStatusRow[]>();
   for (const row of (participantRows as ParticipantStatusRow[] | null) ?? []) {
@@ -80,9 +85,17 @@ export async function getChallenges(): Promise<Challenge[]> {
     byChallenge.set(row.challenge_id, list);
   }
 
+  const myPlacementByChallenge = new Map(
+    ((placementRows as { challenge_id: string; placement: number; medal: boolean }[] | null) ?? []).map((r) => [
+      r.challenge_id,
+      r,
+    ]),
+  );
+
   return ((challengeRows as ChallengeRow[] | null) ?? []).map((row) => {
     const participants = byChallenge.get(row.id) ?? [];
     const mine = auth.user ? participants.find((p) => p.user_id === auth.user!.id) : undefined;
+    const myPlacement = myPlacementByChallenge.get(row.id);
     return {
       id: row.id,
       title: row.title,
@@ -93,6 +106,8 @@ export async function getChallenges(): Promise<Challenge[]> {
       participants: participants.length,
       startsAt: row.starts_at,
       visibility: row.visibility,
+      placement: myPlacement?.placement,
+      medal: myPlacement?.medal,
     };
   });
 }
