@@ -3,6 +3,7 @@
  * source of truth for "has this user finished onboarding?" — see app/index.tsx.
  */
 import { supabase } from '../supabase';
+import { getBadgeSummary } from './badges';
 import type { ChallengeGoalType, ChallengeStatus, FriendshipStatus, PublicChallengeHistoryItem, PublicProfile, SocialCounts, User } from '../types';
 
 interface ProfileRow {
@@ -211,6 +212,8 @@ export async function getPublicProfile(userId: string): Promise<PublicProfile> {
     { data: myFollowRow, error: ifErr },
     { data: friendCountData, error: fcErr },
     { data: friendshipRows, error: fsErr },
+    { data: placementRows, error: plErr },
+    badges,
   ] = await Promise.all([
     supabase.from('profiles').select('id, display_name, avatar_color, avatar_url, bio, created_at').eq('id', userId).single(),
     supabase.from('streaks').select('current_length, longest_length').eq('user_id', userId).maybeSingle(),
@@ -229,6 +232,8 @@ export async function getPublicProfile(userId: string): Promise<PublicProfile> {
           .select('user_id, friend_id, status')
           .or(`and(user_id.eq.${auth.user.id},friend_id.eq.${userId}),and(user_id.eq.${userId},friend_id.eq.${auth.user.id})`)
       : Promise.resolve({ data: [], error: null }),
+    supabase.from('challenge_placements').select('challenge_id, placement, medal').eq('user_id', userId),
+    getBadgeSummary(userId),
   ]);
   if (pErr) throw pErr;
   if (sErr) throw sErr;
@@ -237,6 +242,14 @@ export async function getPublicProfile(userId: string): Promise<PublicProfile> {
   if (ifErr) throw ifErr;
   if (fcErr) throw fcErr;
   if (fsErr) throw fsErr;
+  if (plErr) throw plErr;
+
+  const placementByChallenge = new Map(
+    ((placementRows as { challenge_id: string; placement: number; medal: boolean }[] | null) ?? []).map((r) => [
+      r.challenge_id,
+      r,
+    ]),
+  );
 
   const statusRowsTyped = (statusRows as PublicChallengeStatusRow[] | null) ?? [];
   const challengeIds = statusRowsTyped.map((r) => r.challenge_id);
@@ -257,13 +270,17 @@ export async function getPublicProfile(userId: string): Promise<PublicProfile> {
     .map((r) => {
       const c = challengesById.get(r.challenge_id);
       if (!c) return null;
-      return {
+      const placement = placementByChallenge.get(r.challenge_id);
+      const item: PublicChallengeHistoryItem = {
         title: c.title,
         goalType: c.goal_type,
         goalValue: c.goal_value,
         progress: r.progress,
         status: r.status,
+        placement: placement?.placement,
+        medal: placement?.medal,
       };
+      return item;
     })
     .filter((item): item is PublicChallengeHistoryItem => item !== null);
 
@@ -284,6 +301,7 @@ export async function getPublicProfile(userId: string): Promise<PublicProfile> {
     isFollowing: !!myFollowRow,
     friendCount: (friendCountData as number | null) ?? 0,
     friendshipStatus: deriveFriendshipStatus(auth.user?.id, userId, (friendshipRows as FriendshipRow[] | null) ?? []),
+    badges,
   };
 }
 

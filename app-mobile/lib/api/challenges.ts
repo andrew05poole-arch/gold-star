@@ -146,12 +146,19 @@ export async function createChallenge(
  */
 export async function getChallengeDetail(challengeId: string): Promise<ChallengeDetail> {
   const { data: auth } = await supabase.auth.getUser();
-  const [{ data: challengeRow, error: cErr }, { data: statusRows, error: sErr }] = await Promise.all([
-    supabase.from('challenges').select('*').eq('id', challengeId).single(),
-    supabase.from('challenge_participant_status').select('*').eq('challenge_id', challengeId),
-  ]);
+  const [{ data: challengeRow, error: cErr }, { data: statusRows, error: sErr }, { data: placementRows, error: plErr }] =
+    await Promise.all([
+      supabase.from('challenges').select('*').eq('id', challengeId).single(),
+      supabase.from('challenge_participant_status').select('*').eq('challenge_id', challengeId),
+      supabase.from('challenge_placements').select('user_id, placement, medal').eq('challenge_id', challengeId),
+    ]);
   if (cErr) throw cErr;
   if (sErr) throw sErr;
+  if (plErr) throw plErr;
+
+  const placementByUser = new Map(
+    ((placementRows as { user_id: string; placement: number; medal: boolean }[] | null) ?? []).map((r) => [r.user_id, r]),
+  );
 
   const rows = (statusRows as FullParticipantStatusRow[] | null) ?? [];
   const memberIds = rows.map((r) => r.user_id);
@@ -169,6 +176,7 @@ export async function getChallengeDetail(challengeId: string): Promise<Challenge
   const members: ChallengeMember[] = rows
     .map((r) => {
       const profile = profilesById.get(r.user_id);
+      const placement = placementByUser.get(r.user_id);
       return {
         userId: r.user_id,
         displayName: profile?.display_name ?? 'StepLeague user',
@@ -180,9 +188,18 @@ export async function getChallengeDetail(challengeId: string): Promise<Challenge
         windowStart: r.window_start,
         windowEnd: r.window_end,
         isMe: auth.user?.id === r.user_id,
+        placement: placement?.placement,
+        medal: placement?.medal,
       };
     })
-    .sort((a, b) => b.progress - a.progress);
+    // Finalized challenges (0026_challenge_placements_and_points.sql) sort by
+    // the permanent placement; unfinalized ones fall back to live progress.
+    .sort((a, b) => {
+      if (a.placement != null && b.placement != null) return a.placement - b.placement;
+      if (a.placement != null) return -1;
+      if (b.placement != null) return 1;
+      return b.progress - a.progress;
+    });
 
   const row = challengeRow as ChallengeDetailRow;
   return {
