@@ -94,6 +94,9 @@ export interface Challenge {
   participants: number;
   startsAt: string; // local date key; in the future for a scheduled/"queued" challenge
   visibility: ChallengeVisibility;
+  /** The caller's permanent final rank, set once finalize_challenge_placements (0026) runs after the challenge closes. */
+  placement?: number;
+  medal?: boolean;
 }
 
 /** One participant's own progress within a challenge, for the detail screen's member leaderboard. See app/challenge/[id].tsx. */

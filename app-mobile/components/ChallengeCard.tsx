@@ -23,10 +23,19 @@ const STATUS_BADGE: Record<
   expired: { label: 'Expired', color: colors.textSecondary, icon: 'time-outline' },
 };
 
+const MEDAL: Record<number, { emoji: string; label: string }> = {
+  1: { emoji: '🥇', label: '1st place' },
+  2: { emoji: '🥈', label: '2nd place' },
+  3: { emoji: '🥉', label: '3rd place' },
+};
+
 export function ChallengeCard({ challenge, onJoin }: Props) {
   const router = useRouter();
   const isActive = challenge.variant === 'active';
-  const badge = challenge.status && challenge.status !== 'active' ? STATUS_BADGE[challenge.status] : null;
+  // A permanent medal (0026_challenge_placements_and_points.sql) takes
+  // priority over the plain "Completed" status badge once finalized.
+  const medal = challenge.medal && challenge.placement ? MEDAL[challenge.placement] : null;
+  const badge = !medal && challenge.status && challenge.status !== 'active' ? STATUS_BADGE[challenge.status] : null;
   // Scheduled-but-not-yet-started, and I haven't joined — string comparison
   // is safe since both sides are "YYYY-MM-DD" local date keys, which sort
   // lexically the same as chronologically.
@@ -46,7 +55,12 @@ export function ChallengeCard({ challenge, onJoin }: Props) {
           <Text style={styles.title}>{challenge.title}</Text>
           <Text style={styles.subtitle}>{challenge.subtitle}</Text>
         </View>
-        {badge ? (
+        {medal ? (
+          <View style={[styles.badge, { backgroundColor: `${colors.secondary}22` }]}>
+            <Text style={styles.medalEmoji}>{medal.emoji}</Text>
+            <Text style={[styles.badgeText, { color: colors.secondary }]}>{medal.label}</Text>
+          </View>
+        ) : badge ? (
           <View style={[styles.badge, { backgroundColor: `${badge.color}22` }]}>
             <Ionicons name={badge.icon} size={14} color={badge.color} />
             <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
@@ -98,6 +112,7 @@ const styles = StyleSheet.create({
   participantsText: { fontFamily: fontFamily.bold, fontSize: 13, color: colors.textSecondary },
   badge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: 999 },
   badgeText: { fontFamily: fontFamily.bold, fontSize: 12 },
+  medalEmoji: { fontSize: 14 },
   progressWrap: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.md },
   pct: { fontFamily: fontFamily.extraBold, fontSize: 14, color: colors.primary, width: 44, textAlign: 'right' },
   joinBtn: { height: 44, marginTop: spacing.md },

@@ -27,6 +27,8 @@ const STATUS_COLOR: Record<ChallengeStatus, string> = {
   expired: colors.textSecondary,
 };
 
+const MEDAL_EMOJI: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
+
 export default function PublicProfileScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
   const router = useRouter();
@@ -199,6 +201,28 @@ export default function PublicProfileScreen() {
             </Card>
           </View>
 
+          <Card style={styles.badgesCard}>
+            <View style={styles.medalsRow}>
+              <View style={styles.medalItem}>
+                <Text style={styles.medalEmoji}>🥇</Text>
+                <Text variant="title">{profile.badges.gold}</Text>
+              </View>
+              <View style={styles.medalItem}>
+                <Text style={styles.medalEmoji}>🥈</Text>
+                <Text variant="title">{profile.badges.silver}</Text>
+              </View>
+              <View style={styles.medalItem}>
+                <Text style={styles.medalEmoji}>🥉</Text>
+                <Text variant="title">{profile.badges.bronze}</Text>
+              </View>
+            </View>
+            <Text style={styles.badgesSummaryText}>
+              {profile.badges.competed} {profile.badges.competed === 1 ? 'challenge' : 'challenges'} competed ·{' '}
+              {profile.badges.totalPoints} pts ·{' '}
+              {profile.badges.worldRank != null ? `World Rank #${profile.badges.worldRank}` : 'Unranked'}
+            </Text>
+          </Card>
+
           <View style={styles.section}>
             <Text variant="heading">Challenge history</Text>
             {profile.challengeHistory.length === 0 && <Text variant="body">No challenges joined yet.</Text>}
@@ -211,7 +235,11 @@ export default function PublicProfileScreen() {
                       {item.progress.toLocaleString()} / {item.goalValue.toLocaleString()} {GOAL_TYPE_LABEL[item.goalType]}
                     </Text>
                   </View>
-                  <Text style={[styles.challengeStatus, { color: STATUS_COLOR[item.status] }]}>{item.status}</Text>
+                  {item.medal && item.placement ? (
+                    <Text style={styles.challengeMedal}>{MEDAL_EMOJI[item.placement] ?? '🏅'}</Text>
+                  ) : (
+                    <Text style={[styles.challengeStatus, { color: STATUS_COLOR[item.status] }]}>{item.status}</Text>
+                  )}
                 </View>
               </Card>
             ))}
@@ -232,10 +260,21 @@ const styles = StyleSheet.create({
   actionBtn: { flex: 1 },
   statsRow: { flexDirection: 'row', gap: spacing.sm },
   statCard: { flex: 1, gap: spacing.xs },
+  badgesCard: { gap: spacing.sm },
+  medalsRow: { flexDirection: 'row' },
+  medalItem: { flex: 1, alignItems: 'center', gap: 2 },
+  medalEmoji: { fontSize: 24 },
+  badgesSummaryText: {
+    textAlign: 'center',
+    fontFamily: fontFamily.semibold,
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
   section: { gap: spacing.sm },
   challengeCard: { paddingVertical: spacing.md },
   challengeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   challengeInfo: { gap: 2 },
   challengeTitle: { fontFamily: fontFamily.bold, fontSize: 15, color: colors.textPrimary },
   challengeStatus: { fontFamily: fontFamily.extraBold, fontSize: 13, textTransform: 'capitalize' },
+  challengeMedal: { fontSize: 22 },
 });
