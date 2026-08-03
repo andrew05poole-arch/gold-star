@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily, radii, spacing } from '@/lib/theme';
@@ -17,6 +18,7 @@ import type { SocialCounts, User } from '@/lib/types';
 const BIO_MAX_LENGTH = 160;
 
 export default function Profile() {
+  const router = useRouter();
   const { session } = useAuth();
   const [profile, setProfile] = useState<User | null>(null);
   const [signingOut, setSigningOut] = useState(false);
@@ -50,7 +52,12 @@ export default function Profile() {
     setSigningOut(true);
     try {
       await signOut();
-      // app/index.tsx watches the session and redirects to /login once it clears.
+      // app/index.tsx is the only screen that watches the session and
+      // redirects to /login — it only runs while mounted at "/", so
+      // signing out from here (a tab screen) needs its own explicit
+      // navigation back to "/" to actually leave the tabs, same pattern
+      // login.tsx's handleVerify uses after a successful sign-in.
+      router.replace('/');
     } catch (err) {
       setSigningOut(false);
       showAlert('Sign out failed', errorMessage(err, 'Please try again.'));
