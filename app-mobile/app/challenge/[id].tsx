@@ -1,10 +1,11 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily, spacing } from '@/lib/theme';
 import { deleteChallenge, getChallengeDetail, updateChallenge } from '@/lib/api/challenges';
 import { errorMessage } from '@/lib/errorMessage';
+import { showAlert } from '@/lib/alert';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/Card';
@@ -77,7 +78,7 @@ export default function ChallengeDetailScreen() {
 
   function handleDelete() {
     if (!detail) return;
-    Alert.alert('Delete this challenge?', "This removes it for everyone who joined. This can't be undone.", [
+    showAlert('Delete this challenge?', "This removes it for everyone who joined. This can't be undone.", [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -87,7 +88,7 @@ export default function ChallengeDetailScreen() {
             await deleteChallenge(detail.id);
             router.back();
           } catch (e) {
-            Alert.alert('Could not delete', errorMessage(e, 'Try again.'));
+            showAlert('Could not delete', errorMessage(e, 'Try again.'));
           }
         },
       },

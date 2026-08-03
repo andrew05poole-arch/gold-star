@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Platform, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { createMyProfile, updateDailyGoal } from '@/lib/api/profile';
 import { addFriendByReferralCode } from '@/lib/api/leaderboard';
 import { importHistoricalSteps } from '@/lib/historicalStepImport';
 import { track } from '@/lib/analytics';
+import { showAlert } from '@/lib/alert';
 import type { HistoricalImportResult, ImportRangeDays } from '@/lib/types';
 import { Text } from '@/components/Text';
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -82,7 +83,7 @@ export default function Onboarding() {
     }
 
     track('health_permission_denied', { platform: Platform.OS });
-    Alert.alert(
+    showAlert(
       'Step access needed',
       'You can grant this later from your device Settings, or reconnect from your Profile. StepLeague still works without it.',
       [{ text: 'OK', onPress: navigateHome }],
