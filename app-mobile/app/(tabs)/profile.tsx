@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily, radii, spacing } from '@/lib/theme';
 import { useAuth, signOut } from '@/lib/useAuth';
 import { getMyProfile, getMySocialCounts, updateBio, updateLocation, uploadAvatar } from '@/lib/api/profile';
 import { errorMessage } from '@/lib/errorMessage';
+import { showAlert } from '@/lib/alert';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/Card';
@@ -52,7 +53,7 @@ export default function Profile() {
       // app/index.tsx watches the session and redirects to /login once it clears.
     } catch (err) {
       setSigningOut(false);
-      Alert.alert('Sign out failed', errorMessage(err, 'Please try again.'));
+      showAlert('Sign out failed', errorMessage(err, 'Please try again.'));
     }
   }
 
@@ -89,7 +90,7 @@ export default function Profile() {
   async function handlePickPhoto() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Photo access needed', 'Enable photo access from Settings to set a profile picture.');
+      showAlert('Photo access needed', 'Enable photo access from Settings to set a profile picture.');
       return;
     }
 
@@ -107,7 +108,7 @@ export default function Profile() {
       const avatarUrl = await uploadAvatar(asset.uri, asset.mimeType ?? 'image/jpeg');
       setProfile((prev) => (prev ? { ...prev, avatarUrl } : prev));
     } catch (err) {
-      Alert.alert('Could not upload photo', errorMessage(err, 'Please try again.'));
+      showAlert('Could not upload photo', errorMessage(err, 'Please try again.'));
     } finally {
       setUploadingPhoto(false);
     }

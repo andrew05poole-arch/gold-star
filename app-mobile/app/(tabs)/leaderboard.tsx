@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Platform, Share, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { Platform, Share, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors, fontFamily, radii, spacing } from '@/lib/theme';
+import { showAlert } from '@/lib/alert';
 import { nextWeeklyResetMs } from '@/lib/mockData';
 import {
   getLeaderboard,
@@ -118,9 +119,9 @@ export default function Leaderboard() {
       if (Platform.OS === 'web') {
         if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
           await navigator.clipboard.writeText(message);
-          Alert.alert('Copied!', 'Invite message copied to your clipboard — paste it anywhere to send.');
+          showAlert('Copied!', 'Invite message copied to your clipboard — paste it anywhere to send.');
         } else {
-          Alert.alert('Copy this to invite a friend', message);
+          showAlert('Copy this to invite a friend', message);
         }
       } else {
         await Share.share({ message });
@@ -166,7 +167,7 @@ export default function Leaderboard() {
   }
 
   function handleRemoveFriend(friend: Friend) {
-    Alert.alert('Remove friend?', `${friend.displayName} will be removed from your leaderboard.`, [
+    showAlert('Remove friend?', `${friend.displayName} will be removed from your leaderboard.`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Remove',
@@ -176,7 +177,7 @@ export default function Leaderboard() {
             await removeFriend(friend.id);
             refreshLeaderboard();
           } catch {
-            Alert.alert('Could not remove friend', 'Please try again.');
+            showAlert('Could not remove friend', 'Please try again.');
           }
         },
       },
