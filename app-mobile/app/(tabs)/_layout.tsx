@@ -1,8 +1,22 @@
+import { useEffect, useState } from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily } from '@/lib/theme';
+import { getMyProfile } from '@/lib/api/profile';
+import { Avatar } from '@/components/Avatar';
+import type { User } from '@/lib/types';
 
 export default function TabsLayout() {
+  // Shown as the Profile tab's icon instead of a generic person glyph, so
+  // which account is signed in is visible from any tab — not just after
+  // navigating into Profile itself (the actual ask: testing with multiple
+  // accounts side by side made it easy to lose track of which was active).
+  const [profile, setProfile] = useState<User | null>(null);
+
+  useEffect(() => {
+    getMyProfile().then(setProfile).catch(() => {});
+  }, []);
+
   return (
     <Tabs
       screenOptions={{
@@ -58,7 +72,12 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, size }) => <Ionicons name="person-circle" size={size} color={color} />,
+          tabBarIcon: ({ color, size }) =>
+            profile ? (
+              <Avatar name={profile.displayName} color={profile.avatarColor} photoUrl={profile.avatarUrl} size={size} />
+            ) : (
+              <Ionicons name="person-circle" size={size} color={color} />
+            ),
         }}
       />
     </Tabs>
