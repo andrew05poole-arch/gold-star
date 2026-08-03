@@ -108,6 +108,10 @@ export interface ChallengeMember {
   windowStart: string;
   windowEnd: string;
   isMe: boolean;
+  /** Permanent final rank, set once by finalize_challenge_placements (0026) after the challenge closes for everyone. Undefined until then — falls back to live progress-sort order. */
+  placement?: number;
+  /** True only for placement <= 3 when the medal-eligibility gate passed (>=3 participants, progress > 0) — see 0026's header comment. */
+  medal?: boolean;
 }
 
 /** Full detail of a single challenge, including every member ranked by progress. */
@@ -148,7 +152,8 @@ export type ActivityEventType =
   | 'challenge_completed'
   | 'challenge_joined'
   | 'friend_added'
-  | 'reshare';
+  | 'reshare'
+  | 'challenge_placement';
 
 /** A row from `get_friend_activity_feed` (0008_activity_events.sql), plus reaction/reshare state layered on client-side. */
 export interface ActivityEvent {
@@ -260,6 +265,18 @@ export interface PublicChallengeHistoryItem {
   goalValue: number;
   progress: number;
   status: ChallengeStatus;
+  placement?: number;
+  medal?: boolean;
+}
+
+/** Badge/points summary from challenge_placements + points_transactions (0026_challenge_placements_and_points.sql). worldRank is null when the user has never earned any points yet — show "Unranked", not a fabricated number. */
+export interface ChallengeBadgeSummary {
+  competed: number;
+  gold: number;
+  silver: number;
+  bronze: number;
+  totalPoints: number;
+  worldRank: number | null;
 }
 
 /** The signed-in caller's relationship to a profile's owner — see get_friend_request logic in 0022_friend_request_from_profile.sql. */
@@ -279,6 +296,7 @@ export interface PublicProfile {
   isFollowing: boolean; // true if the signed-in caller follows this profile
   friendCount: number;
   friendshipStatus: FriendshipStatus;
+  badges: ChallengeBadgeSummary;
 }
 
 /** Friends / followers / following counts for the signed-in user's own profile tab. */
