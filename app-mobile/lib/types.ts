@@ -97,6 +97,8 @@ export interface Challenge {
   /** The caller's permanent final rank, set once finalize_challenge_placements (0026) runs after the challenge closes. */
   placement?: number;
   medal?: boolean;
+  /** Undefined if the creator's profile couldn't be resolved (shouldn't normally happen — the creator is always also a participant). */
+  creatorName?: string;
 }
 
 /** One participant's own progress within a challenge, for the detail screen's member leaderboard. See app/challenge/[id].tsx. */
@@ -129,6 +131,10 @@ export interface ChallengeDetail {
   createdAt: string;
   isOwner: boolean;
   visibility: ChallengeVisibility;
+  creatorId: string | null;
+  creatorName: string;
+  creatorAvatarColor: string;
+  creatorAvatarUrl?: string;
   members: ChallengeMember[]; // ranked by progress, descending
 }
 

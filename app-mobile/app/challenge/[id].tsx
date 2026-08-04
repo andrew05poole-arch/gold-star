@@ -171,6 +171,24 @@ export default function ChallengeDetailScreen() {
                   {detail.goalValue.toLocaleString()} {GOAL_TYPE_LABEL[detail.goalType]} · {detail.durationDays}-day
                   window per member · started {detail.startsAt}
                 </Text>
+                <Pressable
+                  style={styles.creatorRow}
+                  disabled={detail.isOwner || !detail.creatorId}
+                  onPress={() =>
+                    detail.creatorId &&
+                    router.push({ pathname: '/profile/[userId]', params: { userId: detail.creatorId } })
+                  }
+                >
+                  <Avatar
+                    name={detail.creatorName}
+                    color={detail.creatorAvatarColor}
+                    photoUrl={detail.creatorAvatarUrl}
+                    size={22}
+                  />
+                  <Text variant="caption" style={styles.creatorText}>
+                    Created by {detail.isOwner ? 'you' : detail.creatorName}
+                  </Text>
+                </Pressable>
                 {detail.isOwner && (
                   <View style={styles.ownerActions}>
                     <PrimaryButton label="Edit" variant="ghost" onPress={() => setEditing(true)} style={styles.editBtn} />
@@ -226,6 +244,8 @@ const styles = StyleSheet.create({
   summaryCard: { gap: spacing.xs },
   subtitle: { color: colors.textSecondary },
   meta: { marginTop: spacing.xs },
+  creatorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.sm },
+  creatorText: { fontFamily: fontFamily.semibold },
   ownerActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   editBtn: { flex: 1, height: 44 },
   fieldLabel: { marginTop: spacing.sm },

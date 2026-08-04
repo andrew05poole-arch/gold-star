@@ -16,6 +16,7 @@ interface ChallengeRow {
   goal_value: number;
   starts_at: string;
   visibility: ChallengeVisibility;
+  created_by: string | null;
 }
 
 interface ChallengeDetailRow {
@@ -68,7 +69,7 @@ export async function getChallenges(): Promise<Challenge[]> {
   const { data: auth } = await supabase.auth.getUser();
   const [{ data: challengeRows, error: cErr }, { data: participantRows, error: pErr }, { data: placementRows, error: plErr }] =
     await Promise.all([
-      supabase.from('challenges').select('id, title, subtitle, goal_value, starts_at, visibility'),
+      supabase.from('challenges').select('id, title, subtitle, goal_value, starts_at, visibility, created_by'),
       supabase.from('challenge_participant_status').select('challenge_id, user_id, progress, status'),
       auth.user
         ? supabase.from('challenge_placements').select('challenge_id, placement, medal').eq('user_id', auth.user.id)
@@ -92,7 +93,18 @@ export async function getChallenges(): Promise<Challenge[]> {
     ]),
   );
 
-  return ((challengeRows as ChallengeRow[] | null) ?? []).map((row) => {
+  const rows = (challengeRows as ChallengeRow[] | null) ?? [];
+  const creatorIds = [...new Set(rows.map((r) => r.created_by).filter((id): id is string => !!id))];
+  let creatorNameById = new Map<string, string>();
+  if (creatorIds.length > 0) {
+    const { data: creatorRows, error: crErr } = await supabase.from('profiles').select('id, display_name').in('id', creatorIds);
+    if (crErr) throw crErr;
+    creatorNameById = new Map(
+      ((creatorRows as { id: string; display_name: string }[] | null) ?? []).map((p) => [p.id, p.display_name]),
+    );
+  }
+
+  return rows.map((row) => {
     const participants = byChallenge.get(row.id) ?? [];
     const mine = auth.user ? participants.find((p) => p.user_id === auth.user!.id) : undefined;
     const myPlacement = myPlacementByChallenge.get(row.id);
@@ -108,6 +120,7 @@ export async function getChallenges(): Promise<Challenge[]> {
       visibility: row.visibility,
       placement: myPlacement?.placement,
       medal: myPlacement?.medal,
+      creatorName: row.created_by ? creatorNameById.get(row.created_by) : undefined,
     };
   });
 }
@@ -217,6 +230,22 @@ export async function getChallengeDetail(challengeId: string): Promise<Challenge
     });
 
   const row = challengeRow as ChallengeDetailRow;
+
+  // The creator is always also a participant (create_challenge auto-joins
+  // them), so profilesById — already fetched for the member list — almost
+  // always has them; fall back to a direct lookup for the rare case they're
+  // no longer a member.
+  let creatorProfile = row.created_by ? profilesById.get(row.created_by) : undefined;
+  if (!creatorProfile && row.created_by) {
+    const { data: creatorRow, error: crErr } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar_color, avatar_url')
+      .eq('id', row.created_by)
+      .maybeSingle();
+    if (crErr) throw crErr;
+    creatorProfile = (creatorRow as ProfileNameRow | null) ?? undefined;
+  }
+
   return {
     id: row.id,
     title: row.title,
@@ -228,6 +257,10 @@ export async function getChallengeDetail(challengeId: string): Promise<Challenge
     createdAt: row.created_at,
     isOwner: !!auth.user && auth.user.id === row.created_by,
     visibility: row.visibility,
+    creatorId: row.created_by,
+    creatorName: creatorProfile?.display_name ?? 'StepLeague user',
+    creatorAvatarColor: creatorProfile?.avatar_color ?? '#766F6A',
+    creatorAvatarUrl: creatorProfile?.avatar_url ?? undefined,
     members,
   };
 }
