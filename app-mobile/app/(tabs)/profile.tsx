@@ -299,6 +299,10 @@ export default function Profile() {
         loading={deleting}
         style={styles.deleteButton}
       />
+
+      <Pressable onPress={() => router.push('/privacy')} style={styles.privacyLinkWrap}>
+        <Text style={styles.privacyLink}>Privacy policy</Text>
+      </Pressable>
     </ScreenContainer>
   );
 }
@@ -361,4 +365,6 @@ const styles = StyleSheet.create({
   saveButton: { marginTop: spacing.sm },
   signOutButton: { backgroundColor: colors.danger, marginTop: spacing.md },
   deleteButton: { marginTop: spacing.sm, borderColor: colors.danger },
+  privacyLinkWrap: { alignItems: 'center', marginTop: spacing.md },
+  privacyLink: { fontFamily: fontFamily.bold, fontSize: 13, color: colors.textSecondary },
 });
