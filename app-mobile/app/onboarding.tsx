@@ -363,7 +363,14 @@ export default function Onboarding() {
         />
         <PrimaryButton label="Connect my steps" onPress={handleGrant} />
         <PrimaryButton label="I'll invite friends later" variant="ghost" onPress={handleSkipInvite} />
-        <Text style={styles.privacy}>We only read step counts. You're always in control.</Text>
+        <Text style={styles.privacy}>
+          StepLeague reads only your step count from Apple Health or Health Connect — never other health data — to power
+          your streaks, challenges, and leaderboards. We never sell your data. You can delete your account and all your
+          data anytime.
+        </Text>
+        <TouchableOpacity onPress={() => router.push('/privacy')}>
+          <Text style={styles.privacyLink}>Read our privacy policy</Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -444,6 +451,13 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.semibold,
     fontSize: 12,
     color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+  },
+  privacyLink: {
+    fontFamily: fontFamily.bold,
+    fontSize: 12,
+    color: colors.primary,
     textAlign: 'center',
     marginTop: spacing.xs,
   },

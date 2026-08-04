@@ -34,6 +34,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="challenge/[id]" />
           <Stack.Screen name="profile/[userId]" />
+          <Stack.Screen name="privacy" />
         </Stack>
       </AuthContext.Provider>
     </SafeAreaProvider>
