@@ -355,3 +355,41 @@ export async function unfollowUser(userId: string): Promise<void> {
     .eq('followee_id', userId);
   if (error) throw error;
 }
+
+/**
+ * Permanently deletes the signed-in user's account and all their data
+ * (Apple App Store Guideline 5.1.1(v)). Order matters:
+ *   1. Remove avatar file(s) via the storage API under the user's own RLS
+ *      (0016) — the `delete_account` RPC deliberately can't (storage.objects
+ *      is owned by supabase_storage_admin, and a raw row delete would leak the
+ *      blob). Best-effort: a storage hiccup must never block the deletion.
+ *   2. `delete_account` RPC (0027) purges all app data + best-effort auth row.
+ *   3. Clear the local session. The auth row may already be gone, so signOut
+ *      can error server-side — ignore it; the local clear is what matters.
+ * After this resolves, the caller navigates to '/', and app/index.tsx routes
+ * the now-session-less app to /login.
+ */
+export async function deleteAccount(): Promise<void> {
+  const { data: auth } = await supabase.auth.getUser();
+  const userId = auth.user?.id;
+
+  if (userId) {
+    try {
+      const { data: files } = await supabase.storage.from('avatars').list(userId);
+      if (files && files.length > 0) {
+        await supabase.storage.from('avatars').remove(files.map((f) => `${userId}/${f.name}`));
+      }
+    } catch {
+      // Avatar cleanup is best-effort — never block account deletion on it.
+    }
+  }
+
+  const { error } = await supabase.rpc('delete_account');
+  if (error) throw error;
+
+  try {
+    await supabase.auth.signOut();
+  } catch {
+    // The auth row may already be deleted; the local session clear is best-effort.
+  }
+}

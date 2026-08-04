@@ -5,7 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily, radii, spacing } from '@/lib/theme';
 import { useAuth, signOut } from '@/lib/useAuth';
-import { getMyProfile, getMySocialCounts, updateBio, updateLocation, uploadAvatar } from '@/lib/api/profile';
+import { deleteAccount, getMyProfile, getMySocialCounts, updateBio, updateLocation, uploadAvatar } from '@/lib/api/profile';
 import { getMyBadgeSummary } from '@/lib/api/badges';
 import { errorMessage } from '@/lib/errorMessage';
 import { showAlert } from '@/lib/alert';
@@ -36,6 +36,7 @@ export default function Profile() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [socialCounts, setSocialCounts] = useState<SocialCounts | null>(null);
   const [badges, setBadges] = useState<ChallengeBadgeSummary | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     getMyProfile()
@@ -65,6 +66,30 @@ export default function Profile() {
       setSigningOut(false);
       showAlert('Sign out failed', errorMessage(err, 'Please try again.'));
     }
+  }
+
+  function handleDeleteAccount() {
+    showAlert(
+      'Delete account?',
+      "This permanently deletes your account and all your data — steps, streaks, challenges, friends, and badges. This can't be undone.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await deleteAccount();
+              router.replace('/');
+            } catch (err) {
+              setDeleting(false);
+              showAlert('Could not delete account', errorMessage(err, 'Please try again.'));
+            }
+          },
+        },
+      ],
+    );
   }
 
   async function handleSaveLocation() {
@@ -266,6 +291,14 @@ export default function Profile() {
         loading={signingOut}
         style={styles.signOutButton}
       />
+
+      <PrimaryButton
+        label="Delete account"
+        variant="ghost"
+        onPress={handleDeleteAccount}
+        loading={deleting}
+        style={styles.deleteButton}
+      />
     </ScreenContainer>
   );
 }
@@ -327,4 +360,5 @@ const styles = StyleSheet.create({
   locationSaved: { fontFamily: fontFamily.bold, fontSize: 12, color: colors.textSecondary, marginTop: spacing.xs },
   saveButton: { marginTop: spacing.sm },
   signOutButton: { backgroundColor: colors.danger, marginTop: spacing.md },
+  deleteButton: { marginTop: spacing.sm, borderColor: colors.danger },
 });
