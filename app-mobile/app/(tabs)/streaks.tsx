@@ -104,7 +104,10 @@ export default function Streaks() {
   }, [data, refreshChallenges, refreshInvites]);
 
   const active = challenges.filter((c) => c.variant === 'active' && c.status === 'active');
-  const finished = challenges.filter((c) => c.variant === 'active' && c.status !== 'active');
+  const upcoming = challenges.filter((c) => c.variant === 'active' && c.status === 'upcoming');
+  const finished = challenges.filter(
+    (c) => c.variant === 'active' && c.status !== 'active' && c.status !== 'upcoming',
+  );
   const joinable = challenges.filter((c) => c.variant === 'joinable');
   const inviteCandidates = friends.filter((f) => f.id !== session?.user.id);
 
@@ -232,6 +235,15 @@ export default function Streaks() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Active challenge</Text>
           {active.map((c) => (
+            <ChallengeCard key={c.id} challenge={c} />
+          ))}
+        </View>
+      )}
+
+      {upcoming.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Upcoming</Text>
+          {upcoming.map((c) => (
             <ChallengeCard key={c.id} challenge={c} />
           ))}
         </View>

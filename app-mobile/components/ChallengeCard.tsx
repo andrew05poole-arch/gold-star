@@ -54,6 +54,7 @@ export function ChallengeCard({ challenge, onJoin }: Props) {
         <View style={styles.titleWrap}>
           <Text style={styles.title}>{challenge.title}</Text>
           <Text style={styles.subtitle}>{challenge.subtitle}</Text>
+          {!!challenge.creatorName && <Text style={styles.creator}>by {challenge.creatorName}</Text>}
         </View>
         {medal ? (
           <View style={[styles.badge, { backgroundColor: `${colors.secondary}22` }]}>
@@ -108,6 +109,7 @@ const styles = StyleSheet.create({
   titleWrap: { flex: 1, gap: 2 },
   title: { fontFamily: fontFamily.extraBold, fontSize: 17, color: colors.textPrimary },
   subtitle: { fontFamily: fontFamily.semibold, fontSize: 13, color: colors.textSecondary },
+  creator: { fontFamily: fontFamily.semibold, fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   participants: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   participantsText: { fontFamily: fontFamily.bold, fontSize: 13, color: colors.textSecondary },
   badge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: 999 },
