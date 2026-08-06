@@ -10,8 +10,12 @@
     "splash": {
       "backgroundColor": "#FF6B4A"
     },
-    "ios": { "supportsTablet": true },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.stepleague.app"
+    },
     "android": {
+      "package": "com.stepleague.app",
       "adaptiveIcon": { "backgroundColor": "#FF6B4A" },
       "permissions": ["android.permission.health.READ_STEPS", "android.permission.ACTIVITY_RECOGNITION"]
     },
