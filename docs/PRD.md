@@ -103,7 +103,7 @@ Each mechanic is tagged for its build phase.
 - Badges / titles — Phase 2
 
 ### 📍 Advanced
-- Geo leaderboards (city → global) — Future
+- Geo leaderboards (city → global) — ✅ **Shipped (post-MVP)** — see §10
 - Exploration bonuses — Future (belongs primarily to the Stride World)
 
 ---
@@ -132,9 +132,9 @@ Carried over from the original concept, annotated with MVP scope.
 - Habit Coach (proactive nudges, encouragement) — Future
 
 ### Social Layer
-- Feed — Future
-- Reactions — Future
-- Invites — **MVP (minimal, needed to form a friends leaderboard)**
+- Feed — ✅ **Shipped (post-MVP)** — friends' activity feed with comments and reshare
+- Reactions — ✅ **Shipped (post-MVP)** — likes on activity events
+- Invites — **MVP (minimal, needed to form a friends leaderboard)** — ✅ shipped, plus shareable invite links and friend-request-from-profile
 
 ---
 
@@ -195,16 +195,27 @@ These are functional descriptions of the screens needed for the DailyStep MVP. V
 
 Explicitly out of MVP scope, ordered roughly by likely sequencing:
 
-1. **Additional Worlds** — Walkaholic, FootRace, Stride, StepQuest, MoveMentor (full "metaverse" rollout)
-2. **Presence scoring** — phone-free bonus mechanic
-3. **Geo leaderboards** — city → national → global ranking tiers
-4. **Advanced AI** — adaptive Habit Coach, smarter rival calibration
-5. **Social feed & reactions** — activity feed, likes/comments, richer invite flows
-6. **Celebrities feature** *(added during concept discussion)*:
+1. **Additional Worlds** — Walkaholic, FootRace, Stride, StepQuest, MoveMentor (full "metaverse" rollout) — not started
+2. **Presence scoring** — phone-free bonus mechanic — not started
+3. ~~**Geo leaderboards** — city → national → global ranking tiers~~ — ✅ **Shipped**: self-reported city/country profile fields, `get_city_leaderboard`/`get_country_leaderboard`/`get_global_leaderboard` RPCs, and a Friends/City/Country/Global scope switcher on the League tab
+4. **Advanced AI** — adaptive Habit Coach, smarter rival calibration — not started
+5. ~~**Social feed & reactions** — activity feed, likes/comments, richer invite flows~~ — ✅ **Shipped**: `activity_events` feed tab with likes, comments, and reshare; shareable invite links and friend-request-from-profile cover the "richer invite flows" piece
+6. **Celebrities feature** *(added during concept discussion)* — not started:
    - Follow and compare yourself against celebrity profiles (real, partnered, or simulated)
    - Acts as an **aspirational motivation layer**, distinct from the friends leaderboard
    - Progression framing: compete with people you know → then people you admire
    - Open questions: licensing/partnership requirements for real celebrities vs. simulated "celebrity-style" rival profiles; whether this lives inside DailyStep or becomes its own World
+   - Note: a general **Follow** system (distinct from mutual friendship) has since shipped for public profiles, which this feature could build on
+
+### Also shipped beyond original MVP/backlog scope
+
+Work completed that wasn't explicitly enumerated above:
+- Public profile pages with bio, photo upload, and avatars rendered everywhere
+- Follow system + Friends/Public split on the League tab
+- Challenge visibility + invites (friend picker, "Invited" panel), challenge detail screen, scheduled/"queued" challenges
+- Historical step import during onboarding
+- Custom challenge creation UI
+- Real HealthKit / Health Connect `StepDataProvider` (`app-mobile/lib/healthStepProvider.ts`), gated behind `EXPO_PUBLIC_USE_REAL_HEALTH_PROVIDER` pending manual device verification — see §13.6
 
 ---
 
@@ -294,11 +305,19 @@ rivalDailyTarget = clamp(round(trailingAvg * band), MIN_TARGET, MAX_TARGET)
 ### 13.6 Implementation Status
 
 The data model above is implemented as a real Supabase (Postgres) backend —
-see `../supabase/README.md` and `../supabase/migrations/0001_init.sql` for
-the schema, triggers, RLS policies, and `get_leaderboard` / `get_rival_target`
-RPCs, and `app-mobile/lib/api/` for the client-side wrappers. The streak
-floor (§13.5) ships at 60% of `dailyGoal`, with 2 starting freezes. The step
-*sensor* layer (HealthKit/Google Fit, §7 Data Layer) is still mocked —
-`app-mobile/lib/useStepData.ts` — but writes through to `step_records`, so
-the rest of the backend operates on genuinely persisted data ahead of real
-Health integration.
+see `../supabase/README.md` and `../supabase/migrations/` (now a versioned
+history from `0001_init.sql` through `0023_activity_reshares.sql`) for the
+schema, triggers, RLS policies, and RPCs, and `app-mobile/lib/api/` for the
+client-side wrappers. The streak floor (§13.5) ships at 60% of `dailyGoal`,
+with 2 starting freezes.
+
+The step *sensor* layer (HealthKit/Google Fit, §7 Data Layer) now has a real
+implementation — `app-mobile/lib/healthStepProvider.ts`, backed by
+`react-native-health`/`react-native-health-connect` — behind
+`app-mobile/lib/useStepData.ts`'s swappable `StepDataProvider` interface. It
+defaults **off** (`mockStepProvider` remains active) because the native
+modules only link in a custom EAS dev-client build, not Expo Go or CI/Jest;
+flip it on via `EXPO_PUBLIC_USE_REAL_HEALTH_PROVIDER=true` only after a human
+verifies the flow on a real device. Either provider writes through to
+`step_records`, so the rest of the backend operates on genuinely persisted
+data regardless of which is active.
