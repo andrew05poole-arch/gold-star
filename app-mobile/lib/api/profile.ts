@@ -110,6 +110,28 @@ export async function updateBio(bio: string): Promise<User> {
 }
 
 /**
+ * Sets the signed-in user's display name (set once at onboarding from the
+ * email prefix — see app/onboarding.tsx — with no edit path until now, #77).
+ * Trimmed before writing; unlike updateBio, `display_name` is NOT NULL in
+ * the schema so this never nulls it out — callers are expected to validate
+ * non-blank input themselves (see the editor in app/(tabs)/profile.tsx).
+ */
+export async function updateDisplayName(displayName: string): Promise<User> {
+  const { data: auth, error: authError } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  if (!auth.user) throw new Error('Not signed in');
+  const trimmed = displayName.trim();
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ display_name: trimmed })
+    .eq('id', auth.user.id)
+    .select()
+    .single();
+  if (error) throw error;
+  return toUser(data as ProfileRow);
+}
+
+/**
  * Uploads a locally-picked image (see expo-image-picker in app/(tabs)/profile.tsx)
  * to the "avatars" storage bucket at `{userId}/avatar.<ext>` (upsert: true, so
  * re-uploading replaces the same file) and points `profiles.avatar_url` at its

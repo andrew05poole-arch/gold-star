@@ -5,7 +5,15 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily, radii, spacing } from '@/lib/theme';
 import { useAuth, signOut } from '@/lib/useAuth';
-import { deleteAccount, getMyProfile, getMySocialCounts, updateBio, updateLocation, uploadAvatar } from '@/lib/api/profile';
+import {
+  deleteAccount,
+  getMyProfile,
+  getMySocialCounts,
+  updateBio,
+  updateDisplayName,
+  updateLocation,
+  uploadAvatar,
+} from '@/lib/api/profile';
 import { getMyBadgeSummary } from '@/lib/api/badges';
 import { errorMessage } from '@/lib/errorMessage';
 import { showAlert } from '@/lib/alert';
@@ -19,12 +27,17 @@ import { DailyGoalPicker } from '@/components/DailyGoalPicker';
 import type { ChallengeBadgeSummary, SocialCounts, User } from '@/lib/types';
 
 const BIO_MAX_LENGTH = 160;
+const DISPLAY_NAME_MAX_LENGTH = 40;
 
 export default function Profile() {
   const router = useRouter();
   const { session } = useAuth();
   const [profile, setProfile] = useState<User | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+  const [displayNameInput, setDisplayNameInput] = useState('');
+  const [savingDisplayName, setSavingDisplayName] = useState(false);
+  const [displayNameError, setDisplayNameError] = useState<string | null>(null);
+  const [displayNameSaved, setDisplayNameSaved] = useState(false);
   const [city, setCity] = useState('');
   const [region, setRegion] = useState('');
   const [country, setCountry] = useState('');
@@ -44,6 +57,7 @@ export default function Profile() {
     getMyProfile()
       .then((p) => {
         setProfile(p);
+        setDisplayNameInput(p?.displayName ?? '');
         setCity(p?.city ?? '');
         setRegion(p?.region ?? '');
         setCountry(p?.country ?? '');
@@ -106,6 +120,27 @@ export default function Profile() {
       setLocationError(errorMessage(err, 'Could not save your location.'));
     } finally {
       setSavingLocation(false);
+    }
+  }
+
+  async function handleSaveDisplayName() {
+    setDisplayNameError(null);
+    setDisplayNameSaved(false);
+    const trimmed = displayNameInput.trim();
+    if (trimmed.length === 0) {
+      setDisplayNameError('Display name cannot be empty.');
+      return;
+    }
+    setSavingDisplayName(true);
+    try {
+      const updated = await updateDisplayName(trimmed);
+      setProfile(updated);
+      setDisplayNameInput(updated.displayName);
+      setDisplayNameSaved(true);
+    } catch (err) {
+      setDisplayNameError(errorMessage(err, 'Could not save your display name.'));
+    } finally {
+      setSavingDisplayName(false);
     }
   }
 
@@ -230,6 +265,34 @@ export default function Profile() {
           </Card>
         </View>
       )}
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Display name</Text>
+        <Card style={styles.aboutCard}>
+          <Text style={styles.hint}>The name shown on your profile, leaderboards, and challenges.</Text>
+          <TextInput
+            value={displayNameInput}
+            onChangeText={setDisplayNameInput}
+            placeholder="e.g. Alex"
+            placeholderTextColor={colors.textSecondary}
+            style={styles.input}
+            maxLength={DISPLAY_NAME_MAX_LENGTH}
+          />
+          <Text variant="caption" style={styles.bioCount}>
+            {displayNameInput.length}/{DISPLAY_NAME_MAX_LENGTH}
+          </Text>
+
+          {displayNameError && <Text style={styles.locationError}>{displayNameError}</Text>}
+          {displayNameSaved && !displayNameError && <Text style={styles.locationSaved}>Saved.</Text>}
+
+          <PrimaryButton
+            label="Save"
+            onPress={handleSaveDisplayName}
+            loading={savingDisplayName}
+            style={styles.saveButton}
+          />
+        </Card>
+      </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>About</Text>
