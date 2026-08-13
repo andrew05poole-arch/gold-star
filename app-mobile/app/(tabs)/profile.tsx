@@ -9,11 +9,13 @@ import { deleteAccount, getMyProfile, getMySocialCounts, updateBio, updateLocati
 import { getMyBadgeSummary } from '@/lib/api/badges';
 import { errorMessage } from '@/lib/errorMessage';
 import { showAlert } from '@/lib/alert';
+import { formatSteps } from '@/lib/format';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/Card';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Text } from '@/components/Text';
+import { DailyGoalPicker } from '@/components/DailyGoalPicker';
 import type { ChallengeBadgeSummary, SocialCounts, User } from '@/lib/types';
 
 const BIO_MAX_LENGTH = 160;
@@ -215,6 +217,20 @@ export default function Profile() {
         </Card>
       )}
 
+      {profile && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Daily goal</Text>
+          <Card style={styles.goalCard}>
+            <Text style={styles.hint}>How many steps you're aiming for each day.</Text>
+            <Text style={styles.goalValue}>{formatSteps(profile.dailyGoal)} steps</Text>
+            <DailyGoalPicker
+              dailyGoal={profile.dailyGoal}
+              onChange={(dailyGoal) => setProfile((prev) => (prev ? { ...prev, dailyGoal } : prev))}
+            />
+          </Card>
+        </View>
+      )}
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>About</Text>
         <Card style={styles.aboutCard}>
@@ -343,6 +359,8 @@ const styles = StyleSheet.create({
   },
   section: { gap: spacing.sm, marginTop: spacing.md },
   sectionTitle: { fontFamily: fontFamily.extraBold, fontSize: 18, color: colors.textPrimary },
+  goalCard: { gap: spacing.xs },
+  goalValue: { fontFamily: fontFamily.extraBold, fontSize: 22, color: colors.primary, marginBottom: spacing.xs },
   aboutCard: { gap: spacing.xs },
   locationCard: { gap: spacing.xs },
   hint: { fontFamily: fontFamily.semibold, fontSize: 12, color: colors.textSecondary, marginBottom: spacing.xs },
