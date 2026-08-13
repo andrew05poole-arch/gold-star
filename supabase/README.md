@@ -11,10 +11,16 @@ algorithms documented in `../docs/PRD.md` §13.
    run `ls migrations/` to confirm you have the latest) — creates tables,
    triggers, RPCs, RLS policies. Then optionally run `seed.sql` (adds two
    joinable challenge presets matching the prototype).
-   **None of this SQL has been executed against a live Supabase project in
-   development** — every migration was written and typechecked against the
-   client only; running the full sequence once and sanity-checking each RPC
-   (see below) is a required manual step, not optional polish.
+   **This SQL has been applied to and validated against a live Supabase
+   project** — the full migration sequence has been run via the SQL editor
+   (or `supabase db push`) and each RPC sanity-checked (see "Testing /
+   verifying migrations" below). That process has already caught real bugs
+   that only surfaced against a live database, e.g. the RLS recursion
+   between `challenges` and `challenge_participants` fixed by
+   `0024_fix_challenge_participants_visibility.sql` /
+   `0025_fix_challenges_participants_mutual_recursion.sql`. Running the
+   sequence and sanity-checking each RPC on any new project you set up is
+   still a required manual step, not optional polish.
 3. In **Authentication -> Providers**, ensure **Email** is enabled. The app
    uses passwordless OTP (`signInWithOtp`), so disable "Confirm email" /
    leave magic-link OTP defaults — no password flow is wired up client-side.
@@ -193,12 +199,10 @@ Historical step import during onboarding (`0013_historical_step_import.sql`):
   immune) and why `get_rival_target` is deliberately left unguarded
   (imported history personalizing a private AI-rival target is desired, not
   a competitive-integrity violation).
-- **Not yet applied to the live Supabase project** — like every migration in
-  this file, it needs to be run once via the SQL editor (or `supabase db
-  push`) and sanity-checked (see "Testing / verifying migrations" below)
-  before the historical-import feature can work end-to-end against the real
-  backend. Until then, the mobile app's import flow will fail at the
-  persistence step with a missing-column error.
+- Applied to and validated against the live Supabase project, like the rest
+  of the migration sequence — sanity-checked per "Testing / verifying
+  migrations" below, confirming the historical-import feature works
+  end-to-end against the real backend.
 
 ## Testing / verifying migrations
 
