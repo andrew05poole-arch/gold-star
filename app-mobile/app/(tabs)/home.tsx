@@ -6,7 +6,7 @@ import { getRivalStatus } from '@/lib/api/rival';
 import { getMyStreak } from '@/lib/api/streaks';
 import { rival as fallbackRival } from '@/lib/mockData';
 import { errorMessage } from '@/lib/errorMessage';
-import { formatSteps } from '@/lib/format';
+import { formatSteps, formatRelativeTime } from '@/lib/format';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { StepCounter } from '@/components/StepCounter';
 import { StreakFlame } from '@/components/StreakFlame';
@@ -16,8 +16,12 @@ import { Card } from '@/components/Card';
 import { Text } from '@/components/Text';
 import type { RivalStatus } from '@/lib/types';
 
+// Beyond this age a successful sync is no longer "fresh" — shown as a
+// stale-data warning even though the last write-through did succeed.
+const STALE_SYNC_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
+
 export default function Home() {
-  const { data, isLoading } = useStepData();
+  const { data, isLoading, lastSyncedAt, syncFailed } = useStepData();
   const [rival, setRival] = useState<RivalStatus>(fallbackRival);
   const [rivalError, setRivalError] = useState<string | null>(null);
   const [streakDays, setStreakDays] = useState<number | null>(null);
@@ -61,6 +65,13 @@ export default function Home() {
   const goalPct = data.todaySteps / data.dailyGoal;
   const remaining = Math.max(0, data.dailyGoal - data.todaySteps);
 
+  // The background write-through (see lib/useStepData.ts) either hasn't
+  // resolved yet (lastSyncedAt still null, syncFailed still false) or has
+  // settled one way or the other — never both, since there's a single
+  // attempt per mount.
+  const syncStale = lastSyncedAt != null && Date.now() - lastSyncedAt.getTime() > STALE_SYNC_THRESHOLD_MS;
+  const syncWarning = Boolean(syncFailed) || syncStale;
+
   return (
     <ScreenContainer>
       <View style={styles.header}>
@@ -80,6 +91,12 @@ export default function Home() {
             ? `${formatSteps(remaining)} steps to your ${formatSteps(data.dailyGoal)} goal`
             : `Goal smashed! ${formatSteps(data.dailyGoal)} 🎉`}
         </Text>
+        {(lastSyncedAt || syncFailed) && (
+          <Text style={[styles.syncStatus, syncWarning && styles.syncStatusWarning]}>
+            {syncFailed ? 'Sync failed' : `Last synced ${formatRelativeTime(lastSyncedAt!.toISOString())}`}
+            {!syncFailed && syncStale ? ' · data may be stale' : ''}
+          </Text>
+        )}
       </Card>
 
       <Card>
@@ -111,6 +128,8 @@ const styles = StyleSheet.create({
   goalRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, width: '100%' },
   goalPct: { fontFamily: fontFamily.extraBold, fontSize: 14, color: colors.primary, width: 44, textAlign: 'right' },
   goalText: { fontFamily: fontFamily.semibold, fontSize: 14, color: colors.textSecondary },
+  syncStatus: { fontFamily: fontFamily.semibold, fontSize: 11, color: colors.textSecondary },
+  syncStatusWarning: { color: colors.danger },
   cardLabel: { fontFamily: fontFamily.extraBold, fontSize: 12, color: colors.textSecondary, marginBottom: spacing.sm },
   rivalError: { fontFamily: fontFamily.bold, fontSize: 12, color: colors.danger, marginBottom: spacing.sm },
 });

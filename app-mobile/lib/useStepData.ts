@@ -153,6 +153,11 @@ export function useStepData() {
   const [data, setData] = useState<StepSnapshot | null>(null);
   const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>('undetermined');
   const [isLoading, setIsLoading] = useState(true);
+  // Outcome of the best-effort background write-through below — surfaced so
+  // screens (see app/(tabs)/home.tsx) can show a "last synced Xm ago" status
+  // line and warn when the write silently failed.
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+  const [syncFailed, setSyncFailed] = useState(false);
   const mounted = useRef(true);
 
   useEffect(() => {
@@ -164,7 +169,16 @@ export function useStepData() {
         // Best-effort write-through so streaks/leaderboard/rival operate on real
         // persisted rows even while the sensor layer itself is still mocked. No-ops
         // (silently) if the user has no session/profile yet.
-        upsertTodayStepRecord(snapshot.todaySteps, snapshot.source).catch(() => {});
+        upsertTodayStepRecord(snapshot.todaySteps, snapshot.source)
+          .then(() => {
+            if (mounted.current) {
+              setLastSyncedAt(new Date());
+              setSyncFailed(false);
+            }
+          })
+          .catch(() => {
+            if (mounted.current) setSyncFailed(true);
+          });
       })
       .finally(() => {
         if (mounted.current) setIsLoading(false);
@@ -180,5 +194,5 @@ export function useStepData() {
     return status;
   }
 
-  return { data, permissionStatus, isLoading, requestPermission };
+  return { data, permissionStatus, isLoading, requestPermission, lastSyncedAt, syncFailed };
 }
