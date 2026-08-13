@@ -1,3 +1,4 @@
+import { localDateKey } from '../dateRange';
 import { supabase } from '../supabase';
 import type { StepSource } from '../types';
 
@@ -5,7 +6,7 @@ import type { StepSource } from '../types';
 export async function upsertTodayStepRecord(rawSteps: number, source: StepSource = 'mock'): Promise<void> {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateKey(new Date());
   const { error } = await supabase
     .from('step_records')
     .upsert({ user_id: auth.user.id, date: today, raw_steps: rawSteps, source }, { onConflict: 'user_id,date' });
@@ -74,7 +75,7 @@ export async function getMyWeeklyNormalizedSteps(): Promise<number> {
     .from('step_records')
     .select('normalized_steps')
     .eq('user_id', auth.user.id)
-    .gte('date', weekStart.toISOString().slice(0, 10));
+    .gte('date', localDateKey(weekStart));
   if (error) throw error;
   return (data ?? []).reduce((sum, row) => sum + Number(row.normalized_steps), 0);
 }

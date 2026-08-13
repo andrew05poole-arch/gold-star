@@ -2,14 +2,16 @@
  * Date/timezone rules for historical step import.
  *
  * These rules are new (no prior convention existed for multi-day ranges — see
- * historicalStepImport.ts) and deliberately differ from the existing
- * `.toISOString().slice(0, 10)` idiom used elsewhere in this codebase
- * (useStepData.ts, healthStepProvider.ts's `isoDate`, lib/api/stepRecords.ts),
- * which is UTC-based and can attribute a step record to the wrong calendar
- * day near midnight depending on the device's timezone offset. That existing
- * idiom is left untouched for "today" upserts (out of scope for this
- * feature); everything in this file uses the device's LOCAL calendar day
- * throughout, chosen per the historical-import spec's explicit fallback
+ * historicalStepImport.ts) and deliberately differ from the
+ * `.toISOString().slice(0, 10)` idiom still used elsewhere in this codebase
+ * (useStepData.ts, healthStepProvider.ts's `isoDate`), which is UTC-based and
+ * can attribute a step record to the wrong calendar day near midnight
+ * depending on the device's timezone offset. `lib/api/stepRecords.ts`'s live
+ * "today" write path used to share that same UTC idiom, but now keys on
+ * `localDateKey` from this module instead (see #75), so a step taken near
+ * local midnight isn't mis-credited to the wrong calendar day; everything in
+ * this file uses the device's LOCAL calendar day throughout, chosen per the
+ * historical-import spec's explicit fallback
  * ("use the device's local timezone") since step data is inherently a
  * local-life-pattern concept (a step taken at 11pm shouldn't count for the
  * wrong day just because UTC differs).
