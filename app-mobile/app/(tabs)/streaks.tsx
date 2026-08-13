@@ -19,11 +19,10 @@ import { ScreenContainer } from '@/components/ScreenContainer';
 import { StreakCalendar } from '@/components/StreakCalendar';
 import { StreakFlame } from '@/components/StreakFlame';
 import { ChallengeCard } from '@/components/ChallengeCard';
-import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/Card';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Text } from '@/components/Text';
-import { Ionicons } from '@expo/vector-icons';
+import { FriendPicker } from '@/components/FriendPicker';
 import type { Challenge, ChallengeGoalType, ChallengeInvite, ChallengeVisibility, Friend, StreakDay } from '@/lib/types';
 
 const GOAL_TYPES: { value: ChallengeGoalType; label: string }[] = [
@@ -356,26 +355,12 @@ export default function Streaks() {
               {newVisibility === 'invite_only' && (
                 <>
                   <Text variant="label" style={styles.fieldLabel}>INVITE FRIENDS</Text>
-                  {inviteCandidates.length === 0 ? (
-                    <Text style={styles.inviteHint}>Add some friends first to invite them to a challenge.</Text>
-                  ) : (
-                    <View style={styles.friendPicker}>
-                      {inviteCandidates.map((friend) => {
-                        const selected = selectedFriendIds.has(friend.id);
-                        return (
-                          <TouchableOpacity
-                            key={friend.id}
-                            style={[styles.friendOption, selected && styles.friendOptionActive]}
-                            onPress={() => toggleFriendSelected(friend.id)}
-                          >
-                            <Avatar name={friend.displayName} color={friend.avatarColor} photoUrl={friend.avatarUrl} size={32} />
-                            <Text style={styles.friendOptionText}>{friend.displayName}</Text>
-                            {selected && <Ionicons name="checkmark-circle" size={20} color={colors.rivalAccent} />}
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  )}
+                  <FriendPicker
+                    friends={inviteCandidates}
+                    selectedIds={selectedFriendIds}
+                    onToggle={toggleFriendSelected}
+                    emptyHint="Add some friends first to invite them to a challenge."
+                  />
                 </>
               )}
 
@@ -444,18 +429,6 @@ const styles = StyleSheet.create({
   createError: { fontFamily: fontFamily.bold, fontSize: 12, color: colors.danger, marginTop: spacing.xs },
   createActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   createActionBtn: { flex: 1 },
-  inviteHint: { fontFamily: fontFamily.semibold, fontSize: 12, color: colors.textSecondary },
-  friendPicker: { gap: spacing.xs },
-  friendOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.xs,
-    borderRadius: radii.md,
-    backgroundColor: '#EFEDFF',
-  },
-  friendOptionActive: { backgroundColor: colors.rivalAccent + '22' },
-  friendOptionText: { flex: 1, fontFamily: fontFamily.bold, fontSize: 13, color: colors.textPrimary },
   invites: {
     backgroundColor: colors.surface,
     borderRadius: radii.md,

@@ -3,7 +3,8 @@ import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily, spacing } from '@/lib/theme';
-import { deleteChallenge, getChallengeDetail, updateChallenge } from '@/lib/api/challenges';
+import { deleteChallenge, getChallengeDetail, inviteToChallenge, updateChallenge } from '@/lib/api/challenges';
+import { getLeaderboard } from '@/lib/api/leaderboard';
 import { errorMessage } from '@/lib/errorMessage';
 import { showAlert } from '@/lib/alert';
 import { ScreenContainer } from '@/components/ScreenContainer';
@@ -11,7 +12,8 @@ import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/Card';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Text } from '@/components/Text';
-import type { ChallengeDetail, ChallengeGoalType, ChallengeStatus } from '@/lib/types';
+import { FriendPicker } from '@/components/FriendPicker';
+import type { ChallengeDetail, ChallengeGoalType, ChallengeStatus, Friend } from '@/lib/types';
 
 const GOAL_TYPE_LABEL: Record<ChallengeGoalType, string> = {
   stepsPerDay: 'steps/day',
@@ -39,6 +41,12 @@ export default function ChallengeDetailScreen() {
   const [editSubtitle, setEditSubtitle] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [inviting, setInviting] = useState(false);
+  const [friends, setFriends] = useState<Friend[] | null>(null);
+  const [friendsLoading, setFriendsLoading] = useState(false);
+  const [selectedInviteIds, setSelectedInviteIds] = useState<Set<string>>(new Set());
+  const [sendingInvites, setSendingInvites] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (!id) return;
@@ -96,6 +104,53 @@ export default function ChallengeDetailScreen() {
       },
     ]);
   }
+
+  function openInvitePanel() {
+    setInviting(true);
+    setInviteError(null);
+    setSelectedInviteIds(new Set());
+    if (friends === null) {
+      setFriendsLoading(true);
+      getLeaderboard()
+        .then(setFriends)
+        .catch((e) => setInviteError(errorMessage(e, 'Could not load your friends.')))
+        .finally(() => setFriendsLoading(false));
+    }
+  }
+
+  function toggleInviteSelected(friendId: string) {
+    setSelectedInviteIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(friendId)) next.delete(friendId);
+      else next.add(friendId);
+      return next;
+    });
+  }
+
+  async function handleSendInvites() {
+    if (!detail || selectedInviteIds.size === 0) return;
+    setSendingInvites(true);
+    setInviteError(null);
+    try {
+      const ids = [...selectedInviteIds];
+      await Promise.all(ids.map((friendId) => inviteToChallenge(detail.id, friendId)));
+      setInviting(false);
+      setSelectedInviteIds(new Set());
+      showAlert('Invites sent', ids.length === 1 ? 'Your friend has been invited.' : `${ids.length} friends have been invited.`);
+    } catch (e) {
+      setInviteError(errorMessage(e, 'Could not send that invite.'));
+    } finally {
+      setSendingInvites(false);
+    }
+  }
+
+  // Excludes the owner (always themselves, since only owners see this
+  // picker) and anyone who has already joined — inviting an existing member
+  // is a no-op the picker shouldn't even offer. Re-inviting someone with a
+  // still-pending invite is left in, since invite_to_challenge (0020) is a
+  // harmless upsert-style no-op for that case rather than an error.
+  const memberIds = new Set(detail?.members.map((m) => m.userId) ?? []);
+  const inviteCandidates = (friends ?? []).filter((f) => f.id !== detail?.creatorId && !memberIds.has(f.id));
 
   return (
     <ScreenContainer>
@@ -192,12 +247,53 @@ export default function ChallengeDetailScreen() {
                 {detail.isOwner && (
                   <View style={styles.ownerActions}>
                     <PrimaryButton label="Edit" variant="ghost" onPress={() => setEditing(true)} style={styles.editBtn} />
+                    <PrimaryButton label="Invite" variant="ghost" onPress={openInvitePanel} style={styles.editBtn} />
                     <PrimaryButton label="Delete" variant="ghost" onPress={handleDelete} style={styles.editBtn} />
                   </View>
                 )}
               </>
             )}
           </Card>
+
+          {detail.isOwner && inviting && (
+            <Card style={styles.summaryCard}>
+              <Text variant="heading">Invite friends</Text>
+              {friendsLoading ? (
+                <ActivityIndicator color={colors.primary} style={styles.fieldLabel} />
+              ) : inviteCandidates.length === 0 ? (
+                <Text variant="body" style={styles.fieldLabel}>
+                  {friends && friends.length > 0
+                    ? 'Everyone on your friends list has already joined this challenge.'
+                    : 'Add some friends first to invite them to a challenge.'}
+                </Text>
+              ) : (
+                <View style={styles.fieldLabel}>
+                  <FriendPicker
+                    friends={inviteCandidates}
+                    selectedIds={selectedInviteIds}
+                    onToggle={toggleInviteSelected}
+                  />
+                </View>
+              )}
+              {inviteError && <Text style={styles.error}>{inviteError}</Text>}
+              <View style={styles.editActions}>
+                <PrimaryButton
+                  label="Cancel"
+                  variant="ghost"
+                  onPress={() => setInviting(false)}
+                  disabled={sendingInvites}
+                  style={styles.editBtn}
+                />
+                <PrimaryButton
+                  label="Send invite"
+                  onPress={handleSendInvites}
+                  loading={sendingInvites}
+                  disabled={selectedInviteIds.size === 0}
+                  style={styles.editBtn}
+                />
+              </View>
+            </Card>
+          )}
 
           <View style={styles.section}>
             <Text variant="heading">Members ({detail.members.length})</Text>
