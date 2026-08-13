@@ -4,17 +4,18 @@ import { colors, fontFamily, radii, spacing } from '@/lib/theme';
 import { Text } from './Text';
 
 interface Props {
-  days: number;
+  /** `null` renders a neutral "—" (streak not yet loaded / failed to load) instead of a fabricated number. */
+  days: number | null;
   size?: number;
 }
 
-/** Flame + streak number. Color intensifies at milestones. */
+/** Flame + streak number. Color intensifies at milestones. `days === null` renders a neutral dash. */
 export function StreakFlame({ days, size = 22 }: Props) {
-  const color = days >= 30 ? colors.accent : days >= 7 ? colors.primary : colors.primaryDark;
+  const color = days == null ? colors.textSecondary : days >= 30 ? colors.accent : days >= 7 ? colors.primary : colors.primaryDark;
   return (
     <View style={styles.pill}>
       <Ionicons name="flame" size={size} color={color} />
-      <Text style={[styles.count, { color }]}>{days}</Text>
+      <Text style={[styles.count, { color }]}>{days ?? '—'}</Text>
       <Text style={styles.label}>day streak</Text>
     </View>
   );
