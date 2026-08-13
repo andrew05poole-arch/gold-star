@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { colors, fontFamily, spacing } from '@/lib/theme';
 import { useStepData } from '@/lib/useStepData';
 import { getRivalStatus } from '@/lib/api/rival';
 import { getMyStreak } from '@/lib/api/streaks';
+import { getChallenges } from '@/lib/api/challenges';
 import { rival as fallbackRival } from '@/lib/mockData';
 import { errorMessage } from '@/lib/errorMessage';
 import { formatSteps, formatRelativeTime } from '@/lib/format';
+import { selectPrimaryActiveChallenge } from '@/lib/activeChallenge';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { StepCounter } from '@/components/StepCounter';
 import { StreakFlame } from '@/components/StreakFlame';
@@ -14,18 +17,23 @@ import { ProgressBar } from '@/components/ProgressBar';
 import { RivalPaceSliver } from '@/components/RivalPaceSliver';
 import { Card } from '@/components/Card';
 import { Text } from '@/components/Text';
-import type { RivalStatus } from '@/lib/types';
+import type { Challenge, RivalStatus } from '@/lib/types';
 
 // Beyond this age a successful sync is no longer "fresh" — shown as a
 // stale-data warning even though the last write-through did succeed.
 const STALE_SYNC_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
 
 export default function Home() {
+  const router = useRouter();
   const { data, isLoading, lastSyncedAt, syncFailed } = useStepData();
   const [rival, setRival] = useState<RivalStatus>(fallbackRival);
   const [rivalError, setRivalError] = useState<string | null>(null);
   const [streakDays, setStreakDays] = useState<number | null>(null);
   const [streakError, setStreakError] = useState<string | null>(null);
+  // null = not loaded yet, so the "no active challenge" hint below can wait
+  // for the fetch instead of flashing before the real list arrives.
+  const [challenges, setChallenges] = useState<Challenge[] | null>(null);
+  const [challengeError, setChallengeError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!data) return;
@@ -50,6 +58,12 @@ export default function Home() {
         setStreakDays(null);
         setStreakError(errorMessage(e, "Couldn't load your streak."));
       });
+    getChallenges()
+      .then((list) => {
+        setChallenges(list);
+        setChallengeError(null);
+      })
+      .catch((e) => setChallengeError(errorMessage(e, "Couldn't load your challenge.")));
   }, [data]);
 
   if (isLoading || !data) {
@@ -71,6 +85,8 @@ export default function Home() {
   // attempt per mount.
   const syncStale = lastSyncedAt != null && Date.now() - lastSyncedAt.getTime() > STALE_SYNC_THRESHOLD_MS;
   const syncWarning = Boolean(syncFailed) || syncStale;
+
+  const activeChallenge = challenges ? selectPrimaryActiveChallenge(challenges) : null;
 
   return (
     <ScreenContainer>
@@ -104,6 +120,31 @@ export default function Home() {
         {rivalError && <Text style={styles.rivalError}>{rivalError}</Text>}
         <RivalPaceSliver rival={rival} />
       </Card>
+
+      {challengeError && <Text style={styles.challengeError}>{challengeError}</Text>}
+      {activeChallenge ? (
+        <Card
+          style={styles.challengeCard}
+          onPress={() =>
+            router.push({ pathname: '/challenge/[id]', params: { id: activeChallenge.primary.id } })
+          }
+        >
+          <Text style={styles.cardLabel}>ACTIVE CHALLENGE</Text>
+          <View style={styles.challengeTitleRow}>
+            <Text style={styles.challengeTitle} numberOfLines={1}>
+              {activeChallenge.primary.title}
+            </Text>
+            <Text style={styles.challengePct}>{Math.round(activeChallenge.primary.progress * 100)}%</Text>
+          </View>
+          <ProgressBar value={activeChallenge.primary.progress} />
+          {activeChallenge.extraCount > 0 && (
+            <Text style={styles.challengeMore}>+{activeChallenge.extraCount} more active</Text>
+          )}
+        </Card>
+      ) : (
+        challenges !== null &&
+        !challengeError && <Text style={styles.noChallenge}>No active challenge</Text>
+      )}
     </ScreenContainer>
   );
 }
@@ -132,4 +173,16 @@ const styles = StyleSheet.create({
   syncStatusWarning: { color: colors.danger },
   cardLabel: { fontFamily: fontFamily.extraBold, fontSize: 12, color: colors.textSecondary, marginBottom: spacing.sm },
   rivalError: { fontFamily: fontFamily.bold, fontSize: 12, color: colors.danger, marginBottom: spacing.sm },
+  challengeCard: { gap: spacing.sm },
+  challengeTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
+  challengeTitle: { flex: 1, fontFamily: fontFamily.extraBold, fontSize: 16, color: colors.textPrimary },
+  challengePct: { fontFamily: fontFamily.extraBold, fontSize: 14, color: colors.primary },
+  challengeMore: { fontFamily: fontFamily.semibold, fontSize: 12, color: colors.textSecondary },
+  challengeError: { fontFamily: fontFamily.bold, fontSize: 12, color: colors.danger },
+  noChallenge: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
 });
