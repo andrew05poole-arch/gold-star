@@ -4,6 +4,7 @@ import { colors, fontFamily, radii, spacing } from '@/lib/theme';
 import { useStepData } from '@/lib/useStepData';
 import { getRivalStatus, updateDifficultyBand } from '@/lib/api/rival';
 import { rival as fallbackRival } from '@/lib/mockData';
+import { errorMessage } from '@/lib/errorMessage';
 import { formatSteps } from '@/lib/format';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { RivalBar } from '@/components/RivalBar';
@@ -17,14 +18,18 @@ const DIFFICULTY_BANDS: RivalStatus['difficultyBand'][] = ['chill', 'even', 'pus
 export default function Rival() {
   const { data } = useStepData();
   const [rival, setRival] = useState<RivalStatus>(fallbackRival);
+  const [rivalError, setRivalError] = useState<string | null>(null);
   const [savingBand, setSavingBand] = useState(false);
 
   useEffect(() => {
     if (!data) return;
     const todayNormalized = data.weeklyHistory[data.weeklyHistory.length - 1]?.normalizedSteps ?? data.todaySteps;
     getRivalStatus(todayNormalized)
-      .then(setRival)
-      .catch(() => {});
+      .then((r) => {
+        setRival(r);
+        setRivalError(null);
+      })
+      .catch((e) => setRivalError(errorMessage(e, "Couldn't load your rival.")));
   }, [data]);
 
   async function handleChangeBand(band: RivalStatus['difficultyBand']) {
@@ -58,6 +63,7 @@ export default function Rival() {
   return (
     <ScreenContainer>
       <Text style={styles.title}>Your Rival</Text>
+      {rivalError && <Text style={styles.rivalError}>{rivalError}</Text>}
 
       <Card style={styles.rivalHeader}>
         <Avatar name={rival.name} color={colors.rivalAccent} size={64} />
@@ -111,6 +117,7 @@ export default function Rival() {
 const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 300 },
   title: { fontFamily: fontFamily.extraBold, fontSize: 28, color: colors.textPrimary, marginTop: spacing.sm },
+  rivalError: { fontFamily: fontFamily.bold, fontSize: 12, color: colors.danger },
   rivalHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   rivalInfo: { gap: spacing.xs },
   rivalName: { fontFamily: fontFamily.extraBold, fontSize: 22, color: colors.textPrimary },

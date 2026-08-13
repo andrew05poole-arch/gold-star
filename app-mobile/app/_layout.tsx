@@ -10,6 +10,7 @@ import {
 } from '@expo-google-fonts/nunito';
 import { AuthContext, useProvideAuth } from '@/lib/useAuth';
 import { colors } from '@/lib/theme';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -27,15 +28,17 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <AuthContext.Provider value={auth}>
         <StatusBar style="dark" />
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="login" />
-          <Stack.Screen name="onboarding" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="challenge/[id]" />
-          <Stack.Screen name="profile/[userId]" />
-          <Stack.Screen name="privacy" />
-        </Stack>
+        <ErrorBoundary>
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="login" />
+            <Stack.Screen name="onboarding" />
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="challenge/[id]" />
+            <Stack.Screen name="profile/[userId]" />
+            <Stack.Screen name="privacy" />
+          </Stack>
+        </ErrorBoundary>
       </AuthContext.Provider>
     </SafeAreaProvider>
   );

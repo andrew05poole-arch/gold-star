@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily, radii, spacing } from '@/lib/theme';
 import { formatRelativeTime } from '@/lib/format';
 import { getFriendActivityFeed, toggleReaction, toggleReshare, getComments, addComment } from '@/lib/api/feed';
+import { errorMessage } from '@/lib/errorMessage';
 import { useAuth } from '@/lib/useAuth';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { Card } from '@/components/Card';
@@ -290,12 +291,16 @@ export default function Feed() {
   const { session } = useAuth();
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [feedError, setFeedError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     setLoading(true);
     getFriendActivityFeed()
-      .then(setEvents)
-      .catch(() => {})
+      .then((rows) => {
+        setEvents(rows);
+        setFeedError(null);
+      })
+      .catch((e) => setFeedError(errorMessage(e, "Couldn't load your feed.")))
       .finally(() => setLoading(false));
   }, []);
 
@@ -357,6 +362,7 @@ export default function Feed() {
   return (
     <ScreenContainer>
       <Text style={styles.title}>Feed</Text>
+      {feedError && <Text style={styles.feedError}>{feedError}</Text>}
 
       {events.length === 0 ? (
         <View style={styles.emptyState}>
@@ -391,6 +397,7 @@ export default function Feed() {
 const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   title: { fontFamily: fontFamily.extraBold, fontSize: 28, color: colors.textPrimary, marginTop: spacing.sm },
+  feedError: { fontFamily: fontFamily.bold, fontSize: 12, color: colors.danger },
   list: { gap: spacing.md },
   card: { gap: spacing.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },

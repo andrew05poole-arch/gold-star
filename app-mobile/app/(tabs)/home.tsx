@@ -5,6 +5,7 @@ import { useStepData } from '@/lib/useStepData';
 import { getRivalStatus } from '@/lib/api/rival';
 import { getMyStreak } from '@/lib/api/streaks';
 import { rival as fallbackRival } from '@/lib/mockData';
+import { errorMessage } from '@/lib/errorMessage';
 import { formatSteps } from '@/lib/format';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { StepCounter } from '@/components/StepCounter';
@@ -18,17 +19,33 @@ import type { RivalStatus } from '@/lib/types';
 export default function Home() {
   const { data, isLoading } = useStepData();
   const [rival, setRival] = useState<RivalStatus>(fallbackRival);
+  const [rivalError, setRivalError] = useState<string | null>(null);
   const [streakDays, setStreakDays] = useState<number | null>(null);
+  const [streakError, setStreakError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!data) return;
     const todayNormalized = data.weeklyHistory[data.weeklyHistory.length - 1]?.normalizedSteps ?? data.todaySteps;
     getRivalStatus(todayNormalized)
-      .then(setRival)
-      .catch(() => {});
+      .then((r) => {
+        setRival(r);
+        setRivalError(null);
+      })
+      .catch((e) => setRivalError(errorMessage(e, "Couldn't load your rival.")));
     getMyStreak()
-      .then((streak) => setStreakDays(streak.currentLength))
-      .catch(() => {});
+      .then((streak) => {
+        setStreakDays(streak.currentLength);
+        setStreakError(null);
+      })
+      .catch((e) => {
+        // Do NOT fall back to the mock provider's streakDays here — that
+        // would silently show fabricated data as if it were the user's real
+        // streak. Surface a neutral "—" (via StreakFlame's null handling)
+        // plus a small error note instead, matching the errorMessage +
+        // inline-Text convention used for other tabs' load failures.
+        setStreakDays(null);
+        setStreakError(errorMessage(e, "Couldn't load your streak."));
+      });
   }, [data]);
 
   if (isLoading || !data) {
@@ -48,8 +65,9 @@ export default function Home() {
     <ScreenContainer>
       <View style={styles.header}>
         <Text style={styles.greeting}>Today</Text>
-        <StreakFlame days={streakDays ?? data.streakDays} />
+        <StreakFlame days={streakDays} />
       </View>
+      {streakError && <Text style={styles.streakError}>{streakError}</Text>}
 
       <Card style={styles.counterCard}>
         <StepCounter steps={data.todaySteps} />
@@ -66,6 +84,7 @@ export default function Home() {
 
       <Card>
         <Text style={styles.cardLabel}>TODAY VS RIVAL</Text>
+        {rivalError && <Text style={styles.rivalError}>{rivalError}</Text>}
         <RivalPaceSliver rival={rival} />
       </Card>
     </ScreenContainer>
@@ -81,9 +100,17 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   greeting: { fontFamily: fontFamily.extraBold, fontSize: 28, color: colors.textPrimary },
+  streakError: {
+    fontFamily: fontFamily.bold,
+    fontSize: 12,
+    color: colors.danger,
+    textAlign: 'right',
+    marginTop: -spacing.xs,
+  },
   counterCard: { alignItems: 'center', gap: spacing.md },
   goalRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, width: '100%' },
   goalPct: { fontFamily: fontFamily.extraBold, fontSize: 14, color: colors.primary, width: 44, textAlign: 'right' },
   goalText: { fontFamily: fontFamily.semibold, fontSize: 14, color: colors.textSecondary },
   cardLabel: { fontFamily: fontFamily.extraBold, fontSize: 12, color: colors.textSecondary, marginBottom: spacing.sm },
+  rivalError: { fontFamily: fontFamily.bold, fontSize: 12, color: colors.danger, marginBottom: spacing.sm },
 });
