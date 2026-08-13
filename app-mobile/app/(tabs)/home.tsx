@@ -19,6 +19,7 @@ import type { RivalStatus } from '@/lib/types';
 export default function Home() {
   const { data, isLoading } = useStepData();
   const [rival, setRival] = useState<RivalStatus>(fallbackRival);
+  const [rivalError, setRivalError] = useState<string | null>(null);
   const [streakDays, setStreakDays] = useState<number | null>(null);
   const [streakError, setStreakError] = useState<string | null>(null);
 
@@ -26,8 +27,11 @@ export default function Home() {
     if (!data) return;
     const todayNormalized = data.weeklyHistory[data.weeklyHistory.length - 1]?.normalizedSteps ?? data.todaySteps;
     getRivalStatus(todayNormalized)
-      .then(setRival)
-      .catch(() => {});
+      .then((r) => {
+        setRival(r);
+        setRivalError(null);
+      })
+      .catch((e) => setRivalError(errorMessage(e, "Couldn't load your rival.")));
     getMyStreak()
       .then((streak) => {
         setStreakDays(streak.currentLength);
@@ -80,6 +84,7 @@ export default function Home() {
 
       <Card>
         <Text style={styles.cardLabel}>TODAY VS RIVAL</Text>
+        {rivalError && <Text style={styles.rivalError}>{rivalError}</Text>}
         <RivalPaceSliver rival={rival} />
       </Card>
     </ScreenContainer>
@@ -107,4 +112,5 @@ const styles = StyleSheet.create({
   goalPct: { fontFamily: fontFamily.extraBold, fontSize: 14, color: colors.primary, width: 44, textAlign: 'right' },
   goalText: { fontFamily: fontFamily.semibold, fontSize: 14, color: colors.textSecondary },
   cardLabel: { fontFamily: fontFamily.extraBold, fontSize: 12, color: colors.textSecondary, marginBottom: spacing.sm },
+  rivalError: { fontFamily: fontFamily.bold, fontSize: 12, color: colors.danger, marginBottom: spacing.sm },
 });
