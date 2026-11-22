@@ -204,6 +204,45 @@ Historical step import during onboarding (`0013_historical_step_import.sql`):
   migrations" below, confirming the historical-import feature works
   end-to-end against the real backend.
 
+Step plausibility guard — anti-cheat, basic (issue #86,
+`0028_step_plausibility_guard.sql`):
+
+- Adds `step_records.is_flagged` / `flagged_reason` / `submitted_raw_steps`.
+- A BEFORE trigger (`enforce_step_plausibility`) clamps `raw_steps` into a sane
+  range (`[0, 100000]`, tunable) and flags any row it had to clamp, keeping the
+  original value in `submitted_raw_steps` for audit. Because every competitive
+  surface derives from the stored `raw_steps`/`normalized_steps`, this one cap
+  bounds the damage everywhere — it's the only enforcement point a client can't
+  bypass (the app's write path is advisory; a raw API call isn't).
+- Re-declares `leaderboard_week_scores` to exclude `is_flagged` rows as well as
+  `is_historical_import` ones (same single-enforcement-point pattern as 0013), so
+  a flagged day can't score on the friends/city/country/global boards.
+- Also re-points the normalizer trigger to fire on every insert/update (it was
+  scoped to `of raw_steps`), closing a hole where an UPDATE writing
+  `normalized_steps` directly — without touching `raw_steps` — skipped
+  normalization and persisted an arbitrary score.
+- Challenges/streaks/placements/points still count a flagged day, but only at
+  the clamped ceiling, never the fabricated value; full exclusion from challenge
+  progress is a documented Phase-2 follow-up. See the migration header for the
+  complete rationale and the deliberately-deferred Phase-2 heuristics.
+
+Report / block path — safety & trust (issue #85,
+`0029_report_block.sql`):
+
+- Adds `user_blocks` (private to the blocker) and `user_reports` (reporter-only
+  read; stored for later review — no admin UI yet).
+- RPCs: `block_user` (severs friendship + follow both ways, then records the
+  block), `unblock_user`, `get_my_blocked_users` (for a manage-blocks list), and
+  `report_user(reported_id, reason, context)`.
+- Enforcement is at the DB, not just the app: `BEFORE INSERT` triggers on
+  `friendships` and `follows` reject a new row when `are_blocked(a, b)` is true
+  in either direction, so a blocked user can't re-add/re-follow via the RPCs or
+  a direct table insert. Severing the friendship also drops the blocked user
+  from the friend-scoped leaderboard and activity feed automatically.
+- Not covered yet (documented follow-up): hiding a blocked user from the public
+  city/country/global leaderboards and from comment threads. The block already
+  removes them from every friend-scoped surface and stops all direct contact.
+
 ## Testing / verifying migrations
 
 There is no automated test harness for the SQL in this repo (no CI step

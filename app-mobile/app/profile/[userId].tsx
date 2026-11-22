@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily, spacing } from '@/lib/theme';
 import { followUser, getPublicProfile, sendFriendRequest, unfollowUser } from '@/lib/api/profile';
 import { acceptFriendRequest, declineFriendRequest } from '@/lib/api/leaderboard';
+import { blockUser, reportUser, unblockUser } from '@/lib/api/moderation';
+import { showAlert } from '@/lib/alert';
 import { errorMessage } from '@/lib/errorMessage';
 import { useAuth } from '@/lib/useAuth';
 import { ScreenContainer } from '@/components/ScreenContainer';
@@ -38,6 +40,9 @@ export default function PublicProfileScreen() {
   const [error, setError] = useState<string | null>(null);
   const [followLoading, setFollowLoading] = useState(false);
   const [friendActionLoading, setFriendActionLoading] = useState(false);
+  const [blockLoading, setBlockLoading] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reported, setReported] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -82,6 +87,70 @@ export default function PublicProfileScreen() {
     } finally {
       setFriendActionLoading(false);
     }
+  }
+
+  async function handleToggleBlock() {
+    if (!profile || !userId) return;
+    const wasBlocked = profile.isBlocked;
+    const applyToggle = async () => {
+      setBlockLoading(true);
+      try {
+        if (wasBlocked) {
+          await unblockUser(userId);
+        } else {
+          await blockUser(userId);
+        }
+        setProfile((prev) =>
+          prev
+            ? {
+                ...prev,
+                isBlocked: !wasBlocked,
+                // Blocking severs friendship + follow server-side; mirror that locally.
+                ...(wasBlocked ? {} : { isFollowing: false, friendshipStatus: 'none' as const }),
+              }
+            : prev,
+        );
+      } catch {
+        // Leave state as-is so the user can retry.
+      } finally {
+        setBlockLoading(false);
+      }
+    };
+
+    if (wasBlocked) {
+      applyToggle();
+    } else {
+      showAlert(
+        'Block this user?',
+        'They won’t be able to add or follow you, and you’ll be disconnected. You can unblock later.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Block', style: 'destructive', onPress: applyToggle },
+        ],
+      );
+    }
+  }
+
+  function handleReport() {
+    if (!profile || !userId) return;
+    showAlert('Report this user?', 'Our team will review this account. Thanks for helping keep StepLeague safe.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Report',
+        style: 'destructive',
+        onPress: async () => {
+          setReportLoading(true);
+          try {
+            await reportUser(userId);
+            setReported(true);
+          } catch {
+            // Leave state as-is so the user can retry.
+          } finally {
+            setReportLoading(false);
+          }
+        },
+      },
+    ]);
   }
 
   async function handleRespondToFriendRequest(accept: boolean) {
@@ -138,7 +207,14 @@ export default function PublicProfileScreen() {
             </View>
           </Card>
 
-          {profile.id !== session?.user.id && (
+          {profile.id !== session?.user.id && profile.isBlocked && (
+            <Card style={styles.blockedCard}>
+              <Text variant="body">You’ve blocked this user. They can’t add or follow you.</Text>
+              <PrimaryButton label="Unblock" variant="ghost" onPress={handleToggleBlock} loading={blockLoading} />
+            </Card>
+          )}
+
+          {profile.id !== session?.user.id && !profile.isBlocked && (
             <>
               <View style={styles.actionsRow}>
                 <PrimaryButton
@@ -181,6 +257,24 @@ export default function PublicProfileScreen() {
                   />
                 </View>
               )}
+
+              <View style={styles.actionsRow}>
+                <PrimaryButton
+                  label={reported ? 'Reported' : 'Report'}
+                  variant="ghost"
+                  onPress={handleReport}
+                  loading={reportLoading}
+                  disabled={reported}
+                  style={styles.actionBtn}
+                />
+                <PrimaryButton
+                  label="Block"
+                  variant="ghost"
+                  onPress={handleToggleBlock}
+                  loading={blockLoading}
+                  style={styles.actionBtn}
+                />
+              </View>
             </>
           )}
 
@@ -258,6 +352,7 @@ const styles = StyleSheet.create({
   headerInfo: { gap: spacing.xs },
   actionsRow: { flexDirection: 'row', gap: spacing.sm },
   actionBtn: { flex: 1 },
+  blockedCard: { gap: spacing.sm },
   statsRow: { flexDirection: 'row', gap: spacing.sm },
   statCard: { flex: 1, gap: spacing.xs },
   badgesCard: { gap: spacing.sm },
