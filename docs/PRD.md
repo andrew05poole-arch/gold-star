@@ -231,7 +231,7 @@ Work completed that wasn't explicitly enumerated above:
 
 ## 12. Risks & Open Questions
 
-- **Step-data spoofing / anti-cheat** — leaderboards and challenges create incentive to fake step counts; needs a fraud-detection approach before competitive features scale.
+- **Step-data spoofing / anti-cheat** — leaderboards and challenges create incentive to fake step counts; needs a fraud-detection approach before competitive features scale. A **basic server-side guard has shipped** (`supabase/migrations/0028_step_plausibility_guard.sql`): a per-day plausibility clamp + flagging that bounds any fabricated count and excludes flagged days from leaderboard scoring, plus a fix closing a direct-`normalized_steps` write hole. This is the "basic" layer only — device attestation, day-over-day spike/velocity detection, and per-source calibration remain future work before competitive features scale.
 - **Health-data privacy & permissions** — Health API access is sensitive; onboarding must clearly explain data use and comply with platform health-data policies.
 - **Normalization fairness** — raw step counts disadvantage shorter strides, older users, or different device accuracy; the Step Normalizer algorithm needs real validation, not just a stated intent.
 - **AI rival believability** — a rival that's too easy feels pointless; too hard feels discouraging. Calibration logic is a core risk to get right even in the "basic" MVP version.
