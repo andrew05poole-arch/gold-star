@@ -305,6 +305,7 @@ export interface PublicProfile {
   isFollowing: boolean; // true if the signed-in caller follows this profile
   friendCount: number;
   friendshipStatus: FriendshipStatus;
+  isBlocked: boolean; // true if the signed-in caller has blocked this profile (#85)
   badges: ChallengeBadgeSummary;
 }
 

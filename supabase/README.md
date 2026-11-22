@@ -226,6 +226,23 @@ Step plausibility guard — anti-cheat, basic (issue #86,
   progress is a documented Phase-2 follow-up. See the migration header for the
   complete rationale and the deliberately-deferred Phase-2 heuristics.
 
+Report / block path — safety & trust (issue #85,
+`0029_report_block.sql`):
+
+- Adds `user_blocks` (private to the blocker) and `user_reports` (reporter-only
+  read; stored for later review — no admin UI yet).
+- RPCs: `block_user` (severs friendship + follow both ways, then records the
+  block), `unblock_user`, `get_my_blocked_users` (for a manage-blocks list), and
+  `report_user(reported_id, reason, context)`.
+- Enforcement is at the DB, not just the app: `BEFORE INSERT` triggers on
+  `friendships` and `follows` reject a new row when `are_blocked(a, b)` is true
+  in either direction, so a blocked user can't re-add/re-follow via the RPCs or
+  a direct table insert. Severing the friendship also drops the blocked user
+  from the friend-scoped leaderboard and activity feed automatically.
+- Not covered yet (documented follow-up): hiding a blocked user from the public
+  city/country/global leaderboards and from comment threads. The block already
+  removes them from every friend-scoped surface and stops all direct contact.
+
 ## Testing / verifying migrations
 
 There is no automated test harness for the SQL in this repo (no CI step

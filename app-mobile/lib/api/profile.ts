@@ -232,6 +232,7 @@ export async function getPublicProfile(userId: string): Promise<PublicProfile> {
     { data: statusRows, error: cErr },
     { count: followerCount, error: fErr },
     { data: myFollowRow, error: ifErr },
+    { data: blockRow, error: bErr },
     { data: friendCountData, error: fcErr },
     { data: friendshipRows, error: fsErr },
     { data: placementRows, error: plErr },
@@ -246,6 +247,9 @@ export async function getPublicProfile(userId: string): Promise<PublicProfile> {
     supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('followee_id', userId),
     auth.user
       ? supabase.from('follows').select('follower_id').eq('follower_id', auth.user.id).eq('followee_id', userId).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    auth.user
+      ? supabase.from('user_blocks').select('blocked_id').eq('blocker_id', auth.user.id).eq('blocked_id', userId).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
     supabase.rpc('get_friend_count', { p_user_id: userId }),
     auth.user
@@ -262,6 +266,7 @@ export async function getPublicProfile(userId: string): Promise<PublicProfile> {
   if (cErr) throw cErr;
   if (fErr) throw fErr;
   if (ifErr) throw ifErr;
+  if (bErr) throw bErr;
   if (fcErr) throw fcErr;
   if (fsErr) throw fsErr;
   if (plErr) throw plErr;
@@ -323,6 +328,7 @@ export async function getPublicProfile(userId: string): Promise<PublicProfile> {
     isFollowing: !!myFollowRow,
     friendCount: (friendCountData as number | null) ?? 0,
     friendshipStatus: deriveFriendshipStatus(auth.user?.id, userId, (friendshipRows as FriendshipRow[] | null) ?? []),
+    isBlocked: !!blockRow,
     badges,
   };
 }

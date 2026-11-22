@@ -216,6 +216,7 @@ Work completed that wasn't explicitly enumerated above:
 - Historical step import during onboarding
 - Custom challenge creation UI
 - Real HealthKit / Health Connect `StepDataProvider` (`app-mobile/lib/healthStepProvider.ts`), gated behind `EXPO_PUBLIC_USE_REAL_HEALTH_PROVIDER` pending manual device verification — see §13.6
+- Report / block user path (`supabase/migrations/0029_report_block.sql`, profile-screen actions) — a safety baseline for the public profiles/leaderboards/feed; blocking severs friendship + follow and is enforced DB-side. Public-board/comment filtering of blocked users remains a documented follow-up.
 
 ---
 
